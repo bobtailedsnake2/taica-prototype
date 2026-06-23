@@ -811,7 +811,7 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
             </tr>
           ))}</tbody>
         </table>
-        {cSearch.trim()&&!cErr&&filt.length===0 && <div style={{padding:'16px 14px',fontSize:14,color:'rgba(0,0,0,0.6)',textAlign:'center'}}>找不到符合此名稱的課程</div>}
+        {!cErr&&filt.length===0 && <div style={{padding:'16px 14px',fontSize:14,color:'rgba(0,0,0,0.6)',textAlign:'center'}}>找不到符合搜尋條件的課程</div>}
       </div>
     </div>
   );
