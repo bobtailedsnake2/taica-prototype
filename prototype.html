@@ -410,9 +410,9 @@ function QuillEditor({ value, onChange, placeholder, disabled }) {
       modules: {
         toolbar: [
           ['bold', 'italic', 'underline', 'strike'],
-          [{ list: 'ordered' }, { list: 'bullet' }],
-          ['link'],
-          ['clean'],
+          [{ color: [] }, { background: [] }],
+          [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+          ['link', 'image'],
         ],
       },
     });
@@ -783,7 +783,7 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
   const filt = courses.filter(c => c.semester===semester && (!cSearch.trim()||c.courseName.toLowerCase().includes(cSearch.toLowerCase())));
   return (
     <div>
-      <h1 style={{fontSize:28,fontWeight:400,color:'#333',marginBottom:22}}>停修申請設定</h1>
+      <h1 style={{fontSize:32,fontWeight:400,color:'#333',letterSpacing:'-1.5px',marginBottom:22}}>停修申請設定</h1>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
         <div style={{display:'flex',gap:12,alignItems:'center'}}>
           <select value={semester} onChange={ev=>setSemester(ev.target.value)}
