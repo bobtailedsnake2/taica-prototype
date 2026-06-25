@@ -331,6 +331,75 @@ function MuiSelect({ label, value, onChange, options, width = 200 }) {
   );
 }
 
+/* ─── MUI-style TextField ─────────────────────────────────────────────────── */
+function MuiTextField({ label, value, onChange, onKeyDown, type='text', error, helperText, disabled, multiline, rows, style:outerSt }) {
+  const [focused, setFocused] = useState(false);
+  const hasValue = value !== '' && value !== undefined && value !== null;
+  const alwaysFloat = type === 'datetime-local';
+  const floated = focused || hasValue || alwaysFloat;
+  const isError = !!error;
+  const borderColor = isError ? '#d32f2f' : focused ? '#0099cc' : 'rgba(0,0,0,0.23)';
+  const labelColor = isError ? '#d32f2f' : focused ? '#0099cc' : 'rgba(0,0,0,0.6)';
+  const labelTransform = floated
+    ? 'translateY(-50%)'
+    : multiline ? 'translateY(14px)' : 'translateY(calc(20px - 50%))';
+  const sharedStyle = {
+    display:'block', width:'100%', fontSize:14, border:'none', outline:'none',
+    background:'transparent', borderRadius:4, fontFamily:'inherit',
+    color: disabled ? 'rgba(0,0,0,0.38)' : '#333', boxSizing:'border-box',
+    cursor: disabled ? 'not-allowed' : undefined,
+  };
+  return (
+    <div style={{ position:'relative', display:'inline-block', width:'100%', verticalAlign:'top', ...(outerSt||{}) }}>
+      <div style={{
+        position:'relative', borderRadius:4,
+        border: `1px solid ${borderColor}`,
+        background: disabled ? 'rgba(0,0,0,0.02)' : 'white',
+        outline: focused ? `1px solid ${borderColor}` : 'none',
+        outlineOffset: -1,
+        transition: 'border-color 0.1s',
+      }}>
+        {label && <span style={{
+          position:'absolute', left:10, top:0, zIndex:1,
+          transform: labelTransform,
+          fontSize: floated ? 12 : 14,
+          color: labelColor,
+          background: 'white',
+          padding: '0 4px',
+          lineHeight: 1,
+          transition: 'font-size 0.15s, transform 0.15s, color 0.15s',
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+        }}>{label}</span>}
+        {multiline ? (
+          <textarea
+            value={value}
+            onChange={onChange}
+            onKeyDown={onKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            disabled={disabled}
+            rows={rows}
+            style={{ ...sharedStyle, padding:'14px 14px 8px', resize:'vertical' }}
+          />
+        ) : (
+          <input
+            type={type}
+            value={value}
+            onChange={onChange}
+            onKeyDown={onKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            disabled={disabled}
+            style={{ ...sharedStyle, height:40, padding:'8.5px 14px' }}
+          />
+        )}
+      </div>
+      {helperText && <p style={{ fontSize:12, color: isError ? '#d32f2f' : 'rgba(0,0,0,0.6)', margin:'3px 0 0 14px' }}>{helperText}</p>}
+    </div>
+  );
+}
+
 /* ─── Export Split Button ────────────────────────────────────────────────── */
 function ExportSplitButton() {
   const [open, setOpen] = useState(false);
@@ -482,8 +551,8 @@ function AdminConfirmDlg({ title, body, onCancel, onConfirm }) {
         <div style={{padding:'16px 24px',flex:1}}><p style={{margin:0,fontSize:16,lineHeight:1.5,color:'#333'}}>{body}</p></div>
         <div style={{height:1,background:'rgba(0,0,0,0.12)'}}/>
         <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:8,padding:8}}>
-          <button onClick={onCancel} style={{background:'transparent',border:'none',cursor:'pointer',color:AC,fontSize:16,fontWeight:500,letterSpacing:'0.025em',textTransform:'uppercase',padding:'6px 8px',borderRadius:4}}>取消</button>
-          <button onClick={onConfirm} style={{background:AC,border:'none',cursor:'pointer',color:'#fff',fontSize:16,fontWeight:500,letterSpacing:'0.025em',textTransform:'uppercase',padding:'6px 16px',borderRadius:4}}>確定</button>
+          <button onClick={onCancel} className="mui-btn mui-text-primary" style={{background:'transparent',border:'none',cursor:'pointer',color:AC,fontSize:16,fontWeight:500,letterSpacing:'0.025em',textTransform:'uppercase',padding:'6px 8px',borderRadius:4}}>取消</button>
+          <button onClick={onConfirm} className="mui-btn mui-contained-primary" style={{background:AC,border:'none',cursor:'pointer',color:'#fff',fontSize:16,fontWeight:500,letterSpacing:'0.025em',textTransform:'uppercase',padding:'6px 16px',borderRadius:4}}>確定</button>
         </div>
       </div>
     </div>
@@ -565,12 +634,15 @@ function AdminBtn({ children, onClick, disabled, variant='primary', icon, style:
 /* ─── Admin Date Field helper ─────────────────────────────────────────────── */
 function AdminDateField({ label, value, onChange, errMsg }) {
   return (
-    <div style={{flex:1,display:'flex',flexDirection:'column',gap:4}}>
-      <label style={{fontSize:12,color:'rgba(0,0,0,0.6)'}}>{label}</label>
-      <input type="datetime-local" value={value} onChange={ev => onChange(ev.target.value)}
-        style={{height:50,padding:'0 10px',borderRadius:4,fontSize:13,border:`1px solid ${errMsg?'#d32f2f':'rgba(0,0,0,0.23)'}`,outline:'none',width:'100%',boxSizing:'border-box'}} />
-      {errMsg && <span style={{fontSize:11,color:'#d32f2f'}}>{errMsg}</span>}
-    </div>
+    <MuiTextField
+      label={label}
+      type="datetime-local"
+      value={value}
+      onChange={ev => onChange(ev.target.value)}
+      error={!!errMsg}
+      helperText={errMsg || ''}
+      style={{flex:1}}
+    />
   );
 }
 
@@ -626,7 +698,7 @@ function AddDlg({ onClose, onDone, courses }) {
 
   const footer = (
     <>
-      <button onClick={onClose} style={{background:'none',border:'none',color:AC,cursor:'pointer',fontSize:14,padding:'6px 8px'}}>取消</button>
+      <button onClick={onClose} className="mui-btn mui-text-primary" style={{background:'none',border:'none',color:AC,cursor:'pointer',fontSize:14,padding:'6px 8px'}}>取消</button>
       <div style={{flex:1}}/>
       {step>0&&step<STEPS.length-1 && <AdminBtn onClick={()=>setStep(p=>p-1)}>上一步</AdminBtn>}
       <AdminBtn onClick={doNext} disabled={!canNext}>{step===STEPS.length-1?'完成':'下一步'}</AdminBtn>
@@ -639,17 +711,12 @@ function AddDlg({ onClose, onDone, courses }) {
       <div style={{height:1,background:'rgba(0,0,0,0.12)',margin:'0 -24px 14px'}}/>
       {step===0 && (
         <div>
-          <div style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:12}}>
-            <div style={{display:'flex',flexDirection:'column',gap:4}}>
-              <label style={{fontSize:12,color:errInline?'#d32f2f':'rgba(0,0,0,0.6)'}}>課程 ID</label>
-              <div style={{display:'flex',gap:10,alignItems:'center'}}>
-                <input value={inp} onChange={ev=>{setInp(ev.target.value);clearErrs();}} onKeyDown={ev=>ev.key==='Enter'&&addC()} placeholder=""
-                  style={{height:40,padding:'0 12px',borderRadius:4,fontSize:14,width:200,border:`1px solid ${errInline?'#d32f2f':'rgba(0,0,0,0.23)'}`,outline:'none'}}/>
-                <AdminBtn onClick={addC} variant="outline" icon="Plus">加入</AdminBtn>
-              </div>
-              {errInline && <div style={{fontSize:12,color:'#d32f2f',marginTop:2}}>{errInline}</div>}
-              <p style={{fontSize:12,color:'rgba(0,0,0,0.45)',marginTop:4}}>Prototype 輸入 61113、57672 模擬新增課程</p>
+          <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:12}}>
+            <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+              <MuiTextField label="課程 ID" value={inp} onChange={ev=>{setInp(ev.target.value);clearErrs();}} onKeyDown={ev=>ev.key==='Enter'&&addC()} error={!!errInline} helperText={errInline||''} style={{width:200}}/>
+              <AdminBtn onClick={addC} variant="outline" icon="Plus" style={{marginTop:0,flexShrink:0}}>加入</AdminBtn>
             </div>
+            <p style={{fontSize:12,color:'rgba(0,0,0,0.45)'}}>Prototype 輸入 61113、57672 模擬新增課程</p>
           </div>
           <hr style={{borderColor:'rgba(0,0,0,0.12)',margin:0}}/>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
@@ -712,7 +779,7 @@ function SecDlg({ sec, onClose, onSave }) {
 
   const footer = (
     <>
-      <button onClick={onClose} style={{background:'none',border:'none',color:AC,cursor:'pointer',fontSize:14,padding:'6px 8px'}}>取消</button>
+      <button onClick={onClose} className="mui-btn mui-text-primary" style={{background:'none',border:'none',color:AC,cursor:'pointer',fontSize:14,padding:'6px 8px'}}>取消</button>
       <AdminBtn onClick={()=>{onSave({...sec,st:toDsp(st),et:toDsp(et),ad:toDsp(ap),op:'Admin',ot:nowStr(),notes});onClose();}} disabled={!ok}>儲存</AdminBtn>
     </>
   );
@@ -752,7 +819,7 @@ function BatchDlg({ secs, onClose, onSave }) {
 
   const footer = (
     <>
-      <button onClick={onClose} style={{background:'none',border:'none',color:AC,cursor:'pointer',fontSize:14,padding:'6px 8px'}}>取消</button>
+      <button onClick={onClose} className="mui-btn mui-text-primary" style={{background:'none',border:'none',color:AC,cursor:'pointer',fontSize:14,padding:'6px 8px'}}>取消</button>
       <AdminBtn onClick={()=>onSave(secs.map(s=>({...s,st:toDsp(st),et:toDsp(et),ad:toDsp(ap),op:'Admin',ot:nowStr(),...(ow?{notes}:{})})))} disabled={!ok}>儲存</AdminBtn>
     </>
   );
@@ -786,16 +853,11 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
       <h1 style={{fontSize:32,fontWeight:400,color:'#333',letterSpacing:'-1.5px',marginBottom:22}}>停修申請設定</h1>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
         <div style={{display:'flex',gap:12,alignItems:'center'}}>
-          <select value={semester} onChange={ev=>setSemester(ev.target.value)}
-            style={{height:36,padding:'0 10px',borderRadius:4,fontSize:14,border:'1px solid rgba(0,0,0,0.23)',background:'white',outline:'none',width:200,cursor:'pointer'}}>
-            <option value="114-2 (2026 Spring)">114-2 (2026 Spring)</option>
-            <option value="114-1 (2025 Fall)">114-1 (2025 Fall)</option>
-          </select>
-          <div>
-            <input value={cSearch} onChange={ev=>setCSearch(ev.target.value)} placeholder="課程名稱"
-              style={{height:36,padding:'0 12px',borderRadius:4,fontSize:14,border:`1px solid ${cErr?'#CC0000':'rgba(0,0,0,0.23)'}`,outline:'none',width:300}}/>
-            {cErr && <div style={{fontSize:12,color:'#CC0000',marginTop:3,paddingLeft:2}}>{cErr}</div>}
-          </div>
+          <MuiSelect label="學期" value={semester} onChange={v=>setSemester(v)} width={220} options={[
+            {value:'114-2 (2026 Spring)',label:'114-2 (2026 Spring)'},
+            {value:'114-1 (2025 Fall)',label:'114-1 (2025 Fall)'},
+          ]}/>
+          <MuiTextField label="課程名稱" value={cSearch} onChange={ev=>setCSearch(ev.target.value)} error={!!cErr} helperText={cErr||''} style={{width:300}}/>
         </div>
         <AdminBtn onClick={onAdd} variant="outline" icon="Plus">新增課程</AdminBtn>
       </div>
@@ -850,11 +912,7 @@ function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBa
       <h2 style={{fontSize:34,fontWeight:400,color:'rgba(0,0,0,0.87)',margin:0}}>{course.courseName}</h2>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10}}>
         <div style={{display:'flex',gap:8,alignItems:'flex-start',flexWrap:'wrap'}}>
-          <div>
-            <input value={search} onChange={ev=>setSearch(ev.target.value)} placeholder="搜尋班別"
-              style={{height:36,padding:'0 12px',width:220,borderRadius:4,border:`1px solid ${sValidErr?'#CC0000':'rgba(0,0,0,0.23)'}`,fontSize:13,outline:'none'}}/>
-            {sValidErr && <div style={{fontSize:12,color:'#CC0000',marginTop:3,paddingLeft:2}}>{sValidErr}</div>}
-          </div>
+          <MuiTextField label="搜尋班別" value={search} onChange={ev=>setSearch(ev.target.value)} error={!!sValidErr} helperText={sValidErr||''} style={{width:220}}/>
           <div style={{width:1,height:36,background:'rgba(0,0,0,0.12)',flexShrink:0}}/>
           <AdminBtn onClick={()=>onBatchSecs(secs.filter(s=>sel.includes(s.id)))} disabled={!hasSel} icon="Edit">批次編輯設定</AdminBtn>
           <AdminBtn onClick={()=>onBatchClose(secs.filter(s=>sel.includes(s.id)))} disabled={!hasSel} variant="dk" icon="Close">批次關閉班別</AdminBtn>
@@ -915,8 +973,7 @@ function AdminManageView({ secs, onUpdate, onBack, onBackToList, onBatchClose, s
       </div>
       <h2 style={{fontSize:32,fontWeight:400,color:'#333',margin:0}}>管理班別</h2>
       <div style={{display:'flex',alignItems:'center',gap:16}}>
-        <input value={search} onChange={ev=>setSearch(ev.target.value)} placeholder="搜尋班別"
-          style={{height:40,padding:'0 12px',width:220,borderRadius:4,border:'1px solid rgba(0,0,0,0.23)',fontSize:14,outline:'none',flexShrink:0}}/>
+        <MuiTextField label="搜尋班別" value={search} onChange={ev=>setSearch(ev.target.value)} style={{width:220,flexShrink:0}}/>
         <span style={{fontSize:14,color:'rgba(0,0,0,0.6)',whiteSpace:'nowrap'}}>已選取 {sel.length} 個班別</span>
         <AdminBtn onClick={bOpen} disabled={!hasSel}>批次開啟</AdminBtn>
         <AdminBtn onClick={()=>{const t=secs.filter(s=>sel.includes(s.id)&&!s.alwaysOn);setSel([]);onBatchClose(t);}} disabled={!hasSel}>批次關閉</AdminBtn>
@@ -996,7 +1053,7 @@ function StudentView({ application, onSubmit, courseSettings }) {
               <StatusChip status={application.status} />
             </div>
             {(application.status==='同意'||application.status==='不同意') && (
-              <button style={{ color:'#0099cc', background:'none', border:'none', cursor:'pointer', fontSize:15, fontWeight:500, padding:'4px 8px' }}>列印</button>
+              <button className="mui-btn mui-text-primary" style={{ color:'#0099cc', background:'none', border:'none', cursor:'pointer', fontSize:15, fontWeight:500, padding:'4px 8px', borderRadius:4 }}>列印</button>
             )}
           </div>
 
@@ -1043,7 +1100,7 @@ function StudentView({ application, onSubmit, courseSettings }) {
               </div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                <textarea rows={3} placeholder="停修原因" value={reason} onChange={e => e.target.value.length<=500 && setReason(e.target.value)} style={{ width:'100%', fontSize:14, padding:'8px 12px', border:'1px solid rgba(0,0,0,0.23)', borderRadius:4, resize:'vertical', fontFamily:'inherit' }} />
+                <MuiTextField multiline rows={3} label="停修原因" value={reason} onChange={e => e.target.value.length<=500 && setReason(e.target.value)} />
                 <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right' }}>{reason.length} / 500</p>
               </div>
             )}
@@ -1349,33 +1406,31 @@ function App() {
               {/* Filter row */}
               <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16, gap:12, flexWrap:'wrap' }}>
                 <div style={{ display:'flex', gap:16, flexWrap:'wrap', alignItems:'flex-start' }}>
-                  <div>
-                    <input
-                      placeholder="學生姓名"
-                      value={searchName}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setSearchName(val);
-                        if (val === '') {
-                          setSearchErrorType(null);
-                        } else if (val.length > 50) {
-                          setSearchErrorType('tooLong');
-                        } else if (/[^一-鿿㐀-䶿豈-﫿A-Za-z]/.test(val)) {
-                          setSearchErrorType('invalidChars');
-                        } else {
-                          setSearchErrorType(null);
-                        }
-                      }}
-                      style={{ width:200, padding:'7px 10px', border:`1px solid ${searchErrorType?'#cc0000':'rgba(0,0,0,0.23)'}`, borderRadius:4, fontSize:14, height:40 }}
-                    />
-                    {searchErrorType==='invalidChars' && <p style={{ fontSize:12, color:'#cc0000', marginTop:2 }}>請輸入中文或英文姓名</p>}
-                    {searchErrorType==='tooLong' && <p style={{ fontSize:12, color:'#cc0000', marginTop:2 }}>字數上限為 50 字</p>}
-                  </div>
+                  <MuiTextField
+                    label="學生姓名"
+                    value={searchName}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSearchName(val);
+                      if (val === '') {
+                        setSearchErrorType(null);
+                      } else if (val.length > 50) {
+                        setSearchErrorType('tooLong');
+                      } else if (/[^一-鿿㐀-䶿豈-﫿ꀀ-꒏A-Za-z]/.test(val)) {
+                        setSearchErrorType('invalidChars');
+                      } else {
+                        setSearchErrorType(null);
+                      }
+                    }}
+                    error={!!searchErrorType}
+                    helperText={searchErrorType==='invalidChars' ? '請輸入中文或英文姓名' : searchErrorType==='tooLong' ? '字數上限為 50 字' : ''}
+                    style={{ width:200 }}
+                  />
                   <MuiSelect label="班別" value={classFilter} onChange={v => setClassFilter(v)} options={classOptions} width={220} />
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                   {frozenOrder && (
-                    <button onClick={() => { setFrozenOrder(null); setSelected([]); }} style={{ color:'#555', border:'1px solid rgba(0,0,0,0.23)', background:'transparent', borderRadius:4, padding:'6px 14px', fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+                    <button onClick={() => { setFrozenOrder(null); setSelected([]); }} className="mui-btn mui-outlined-default" style={{ color:'#555', border:'1px solid rgba(0,0,0,0.23)', background:'transparent', borderRadius:4, padding:'6px 14px', fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
                       <RefreshIcon /> 重新整理
                     </button>
                   )}
@@ -1622,7 +1677,7 @@ function App() {
                     />
                   </div>
                   <div>
-                    <textarea rows={3} placeholder="審核評語 (選填)" value={dlgComment} onChange={e => e.target.value.length<=500 && setDlgComment(e.target.value)} style={{ width:'100%', fontSize:14, padding:'8px 12px', border:'1px solid rgba(0,0,0,0.23)', borderRadius:4, resize:'vertical', fontFamily:'inherit' }} />
+                    <MuiTextField multiline rows={3} label="審核評語 (選填)" value={dlgComment} onChange={e => e.target.value.length<=500 && setDlgComment(e.target.value)} />
                     <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right', marginTop:4 }}>{dlgComment.length} / 500</p>
                   </div>
                 </>
