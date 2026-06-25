@@ -1097,7 +1097,7 @@ function StudentView({ application, onSubmit, courseSettings }) {
             <p style={{ fontSize:16, color:'#333', lineHeight:1.5 }}>課程名稱：深度學習 Deep Learning<br/>班別：國立成功大學</p>
             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
               <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>授課教師：彭文孝、陳永昇、謝秉均</p>
-              {application.approvalTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>核准時間：{application.approvalTime}</p>}
+              {application.approvalTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>審核時間：{application.approvalTime}</p>}
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
               <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>學生姓名：陳O佑</p>
@@ -1509,7 +1509,7 @@ function App() {
                       <th style={{ padding:'10px 8px', textAlign:'center', borderBottom:'1px solid rgba(0,0,0,0.12)', background:'#f5f5f5', position:'sticky', top:0, zIndex:2 }}>
                         <input type="checkbox" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected; }} onChange={handleSelectAll} style={{ accentColor:'#0099cc' }} />
                       </th>
-                      {['申請學生','班別','學號','申請時間','停修原因','審核結果','審核期限','核准時間','核准人'].map(h => (
+                      {['申請學生','班別','學號','申請時間','停修原因','審核結果','審核期限','審核時間','審核人'].map(h => (
                         <th key={h} style={{ padding:'10px 8px', textAlign:'left', fontSize:14, fontWeight:500, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.12)', background:'#f5f5f5', position:'sticky', top:0, zIndex:2 }}>{h}</th>
                       ))}
                     </tr>
@@ -1554,9 +1554,9 @@ function App() {
                         </td>
                         {/* 審核期限：原本就是逾期審核的學生顯示歷史截止日，其他顯示 admin 當前設定 */}
                         <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', verticalAlign:'top' }}><DateTimeCell value={s._orig === '逾期審核' ? s.deadline : getSecForSchool(s.school).ad} /></td>
-                        {/* 核准時間 */}
+                        {/* 審核時間 */}
                         <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', verticalAlign:'top' }}><DateTimeCell value={s.approvalTime || ''} /></td>
-                        {/* 核准人 */}
+                        {/* 審核人 */}
                         <td style={{ padding:'8px', fontSize:12, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.06)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.approver || ''}</td>
                       </tr>
                     ))}
