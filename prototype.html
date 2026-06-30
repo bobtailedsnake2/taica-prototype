@@ -85,7 +85,7 @@ const CDB = {
   '57672':{s:'114-2 (2026 Spring)',n:'生成式AI 的人文導論'},
 };
 const mkSecs = (st,et,ad,notes) =>
-  BASE_SECS.map(b=>({...b,st:st||'2026/05/04 00:00',et:et||'2026/06/30 23:59',ad:ad||'2026/07/13 23:59',op:'admin2',ot:'2026/03/17 16:54',vis:true,notes:notes||''}));
+  BASE_SECS.map(b=>({...b,st:st||'2026/05/04 00:00',et:et||'2026/06/30 23:59',ad:ad||'2026/07/13 23:59',op:'admin2',ot:'2026/03/17 16:54',vis:['1','2','3','4'].includes(b.id),notes:notes||''}));
 const initCS = () => { const o={}; INIT_COURSES.forEach(c=>{o[c.id]=mkSecs();}); return o; };
 const toDsp = v => { if(!v) return ''; const [d,t]=v.split('T'); return `${d.replace(/-/g,'/')} ${(t||'').slice(0,5)}`; };
 const toInp = v => { if(!v) return ''; const [d,t]=v.split(' '); return `${(d||'').replace(/\//g,'-')}T${t||''}`; };
@@ -481,7 +481,7 @@ function QuillEditor({ value, onChange, placeholder, disabled }) {
           ['bold', 'italic', 'underline', 'strike'],
           [{ color: [] }, { background: [] }],
           [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
-          ['link', 'image'],
+          ['link'],
         ],
       },
     });
@@ -926,183 +926,247 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
 }
 
 /* ─── AdminEditView ──────────────────────────────────────────────────────── */
-function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBatchClose, onBack, onManage }) {
-  const [search, setSearch] = useState('');
-  const [sel, setSel] = useState([]);
-  const vis = secs.filter(s => s.vis && (!search.trim()||s.name.includes(search)));
+function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBatchClose, onUpdate, onBack, showToast }) {
+  const [search, setSearch]     = useState('');
+  const [sel,    setSel]        = useState([]);
+  const [acc1Open, setAcc1Open] = useState(true);
+  const [acc2Open, setAcc2Open] = useState(true);
   const sValidErr = search.length > 50 ? '字數上限為 50 字' : '';
-  const sEmpty = !!(search.trim()&&!sValidErr&&vis.length===0);
-  const allC = sel.length===vis.length&&vis.length>0;
-  const indet = sel.length>0&&sel.length<vis.length;
-  const hasSel = sel.length > 0;
+  const hasSel    = sel.length > 0;
+
+  /* stable 申請數 — matches Figma sample data */
+  const COUNT_MAP = {'1':12,'2':0,'3':3,'4':5,'5':28,'6':0,'7':0};
+  const getCount = id => COUNT_MAP[id] !== undefined ? COUNT_MAP[id] : 0;
+
+  const openSecs   = secs.filter(s =>  s.vis && (!search.trim()||s.name.includes(search)));
+  const closedSecs = secs.filter(s => !s.vis && (!search.trim()||s.name.includes(search)));
+  const openSel    = openSecs;
+  const allC1  = openSel.length > 0    && openSel.every(s => sel.includes(s.id));
+  const indet1 = !allC1 && openSel.some(s => sel.includes(s.id));
+  const allC2  = closedSecs.length > 0 && closedSecs.every(s => sel.includes(s.id));
+  const indet2 = !allC2 && closedSecs.some(s => sel.includes(s.id));
+
+  const batchOpen = () => {
+    onUpdate(secs.map(s => sel.includes(s.id) ? {...s, vis:true} : s));
+    showToast('已成功開啟班別停修功能');
+  };
+
+  const COLS = ['班別','申請開始時間','申請截止時間','教師審核期限','最後操作人','最後操作時間','申請數'];
+
+  const renderTable = (rows, checked, indet, onToggleAll) => (
+    <div style={{borderTop:'1px solid rgba(0,0,0,0.12)',overflowX:'auto'}}>
+      <table style={{width:'100%',borderCollapse:'collapse',minWidth:920}}>
+        <thead><tr style={{background:'#f5f5f5',height:48}}>
+          <th style={{width:44,padding:'0 8px',textAlign:'center'}}>
+            <TriCb checked={checked} indet={indet} onChange={ev=>onToggleAll(ev.target.checked)}/>
+          </th>
+          {COLS.map(h=>(
+            <th key={h} style={{textAlign:'left',padding:'0 8px',fontSize:13,fontWeight:500}}>
+              {h==='申請開始時間'?<span style={{display:'flex',alignItems:'center',gap:3}}>{h}<ArrowDownIcon size={16} color="rgba(0,0,0,0.5)"/></span>:h}
+            </th>
+          ))}
+          <th style={{width:100}}/>
+        </tr></thead>
+        <tbody>{rows.map(sec=>(
+          <tr key={sec.id} style={{height:50,borderTop:'1px solid rgba(0,0,0,0.06)',background:sel.includes(sec.id)?'rgba(0,153,204,0.08)':'white'}}>
+            <td style={{padding:'0 8px',textAlign:'center',width:44}}>
+              <input type="checkbox" checked={sel.includes(sec.id)} onChange={ev=>setSel(p=>ev.target.checked?[...p,sec.id]:p.filter(x=>x!==sec.id))} style={{accentColor:AC,width:17,height:17,cursor:'pointer'}}/>
+            </td>
+            <td style={{padding:'0 8px',fontSize:13}}>{sec.name}</td>
+            <td style={{padding:'0 8px',fontSize:13,whiteSpace:'nowrap'}}>{sec.st}</td>
+            <td style={{padding:'0 8px',fontSize:13,whiteSpace:'nowrap'}}>{sec.et}</td>
+            <td style={{padding:'0 8px',fontSize:13,whiteSpace:'nowrap'}}>{sec.ad}</td>
+            <td style={{padding:'0 8px',fontSize:13}}>{sec.op}</td>
+            <td style={{padding:'0 8px',fontSize:13,whiteSpace:'nowrap'}}>{sec.ot}</td>
+            <td style={{padding:'0 8px',fontSize:13,paddingRight:16}}>{getCount(sec.id)}</td>
+            <td style={{padding:'0 8px',width:100,whiteSpace:'nowrap',textAlign:'right'}}>
+              <button onClick={()=>onEditSec(sec)} className="mui-btn mui-icon" style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'inline-flex',color:'rgba(0,0,0,0.5)'}}><EditIcon size={18}/></button>
+              <Tog on={sec.vis} onChange={()=>{
+                setSel(p => [...new Set([...p, sec.id])]);
+                if(sec.vis){ onBatchClose([sec]); }
+                else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:true}:s)); showToast('已成功開啟班別停修功能'); }
+              }}/>
+            </td>
+          </tr>
+        ))}</tbody>
+      </table>
+      {rows.length===0&&<div style={{padding:'16px',fontSize:14,color:'rgba(0,0,0,0.6)',textAlign:'center'}}>找不到符合條件的班別</div>}
+    </div>
+  );
 
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:14}}>
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      {/* Breadcrumb */}
       <div style={{fontSize:14,display:'flex',alignItems:'center',gap:6}}>
         <button onClick={onBack} className="mui-btn mui-text" style={{background:'none',border:'none',cursor:'pointer',color:'rgba(0,0,0,0.6)',fontSize:14,padding:'2px 4px'}}>停修申請設定</button>
         <span style={{color:'rgba(0,0,0,0.35)',margin:'0 2px'}}>/</span>
-        <span style={{color:'rgba(0,0,0,0.87)',fontSize:14,padding:'2px 4px'}}>編輯班別設定</span>
+        <span style={{color:'rgba(0,0,0,0.87)',fontSize:14,padding:'2px 4px'}}>班別設定</span>
       </div>
       <h2 style={{fontSize:34,fontWeight:400,color:'rgba(0,0,0,0.87)',margin:0}}>{course.courseName}</h2>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10}}>
-        <div style={{display:'flex',gap:8,alignItems:'flex-start',flexWrap:'wrap'}}>
-          <MuiTextField label="搜尋班別" value={search} onChange={ev=>setSearch(ev.target.value)} error={!!sValidErr} helperText={sValidErr||''} style={{width:220}}/>
-          <div style={{width:1,height:36,background:'rgba(0,0,0,0.12)',flexShrink:0}}/>
-          <AdminBtn onClick={()=>onBatchSecs(secs.filter(s=>sel.includes(s.id)))} disabled={!hasSel} icon="Edit">批次編輯設定</AdminBtn>
-          <AdminBtn onClick={()=>onBatchClose(secs.filter(s=>sel.includes(s.id)))} disabled={!hasSel} variant="dk" icon="Close">批次關閉班別</AdminBtn>
+
+      {/* SearchBar */}
+      <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+        <MuiTextField label="搜尋班別" value={search} onChange={ev=>setSearch(ev.target.value)} error={!!sValidErr} helperText={sValidErr||''} style={{width:220}}/>
+        <div style={{width:1,height:36,background:'rgba(0,0,0,0.12)',flexShrink:0}}/>
+        <AdminBtn onClick={()=>onBatchSecs(secs.filter(s=>sel.includes(s.id)))} disabled={!hasSel} icon="Edit">批次編輯設定</AdminBtn>
+        <div style={{width:1,height:36,background:'rgba(0,0,0,0.12)',flexShrink:0}}/>
+        <AdminBtn onClick={batchOpen} disabled={!hasSel} variant="outline">批次開啟</AdminBtn>
+        <AdminBtn onClick={()=>onBatchClose(secs.filter(s=>sel.includes(s.id)))} disabled={!hasSel} variant="outline">批次關閉</AdminBtn>
+      </div>
+
+      {/* Accordion 1 — 開啟停修功能班別 */}
+      <div style={{border:'1px solid rgba(0,0,0,0.12)',borderRadius:4,overflow:'hidden'}}>
+        <div onClick={()=>setAcc1Open(v=>!v)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 16px',height:52,cursor:'pointer',userSelect:'none',background:'white'}}>
+          <span style={{fontSize:16,color:'#333'}}>開啟停修功能班別</span>
+          <span style={{fontSize:18,color:'rgba(0,0,0,0.54)',display:'inline-block',transform:acc1Open?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s'}}>▾</span>
         </div>
-        <AdminBtn onClick={onManage} variant="outline">管理班別</AdminBtn>
+        {acc1Open && renderTable(openSecs, allC1, indet1, c=>{
+          const ids = openSecs.map(s=>s.id);
+          setSel(p => c ? [...new Set([...p,...ids])] : p.filter(x=>!ids.includes(x)));
+        })}
       </div>
-      <div style={{border:'1px solid rgba(0,0,0,0.12)',borderRadius:4,overflow:'auto'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',minWidth:820}}>
-          <thead><tr style={{background:'#f5f5f5',height:48}}>
-            <th style={{width:44,padding:'0 8px',textAlign:'center'}}><TriCb checked={allC} indet={indet} onChange={ev=>setSel(ev.target.checked?vis.map(s=>s.id):[])}/></th>
-            {[['班別',148],['申請開始時間',152],['申請截止時間',148],['教師審核期限',148],['最後操作人',98],['最後操作時間',142]].map(([h,w])=>(
-              <th key={h} style={{textAlign:'left',padding:'0 8px',fontSize:13,fontWeight:500,width:w}}>
-                {h==='申請開始時間' ? <span style={{display:'flex',alignItems:'center',gap:3}}>{h}<ArrowDownIcon size={16} color="rgba(0,0,0,0.5)"/></span> : h}
-              </th>
-            ))}
-            <th style={{width:68}}/>
-          </tr></thead>
-          <tbody>{vis.map(sec => (
-            <tr key={sec.id} style={{height:50,borderTop:'1px solid rgba(0,0,0,0.06)',background:sel.includes(sec.id)?'rgba(0,153,204,0.08)':'white'}}>
-              <td style={{padding:'0 8px',textAlign:'center'}}>
-                <input type="checkbox" checked={sel.includes(sec.id)} onChange={ev=>setSel(p=>ev.target.checked?[...p,sec.id]:p.filter(x=>x!==sec.id))} style={{accentColor:AC,width:17,height:17,cursor:'pointer'}}/>
-              </td>
-              {[sec.name,sec.st,sec.et,sec.ad,sec.op,sec.ot].map((v,i)=><td key={i} style={{padding:'0 8px',fontSize:13}}>{v}</td>)}
-              <td style={{padding:'0 8px',textAlign:'right'}}>
-                <button onClick={()=>onEditSec(sec)} className="mui-btn mui-icon" style={{background:'none',border:'none',cursor:'pointer',padding:3,display:'inline-flex',color:'rgba(0,0,0,0.5)'}}><EditIcon size={18}/></button>
-                {sec.alwaysOn
-                  ? <button disabled title="此學校固定開放，無法關閉" style={{background:'none',border:'none',cursor:'not-allowed',padding:3,display:'inline-flex',color:'rgba(0,0,0,0.26)',opacity:0.38}}><CloseIcon size={18}/></button>
-                  : <button onClick={()=>onBatchClose([sec])} className="mui-btn mui-icon" style={{background:'none',border:'none',cursor:'pointer',padding:3,display:'inline-flex',color:'rgba(0,0,0,0.5)'}}><CloseIcon size={18}/></button>}
-              </td>
-            </tr>
-          ))}</tbody>
-        </table>
-        {sEmpty && <div style={{padding:'16px 14px',fontSize:14,color:'rgba(0,0,0,0.6)',textAlign:'center'}}>找不到相符的班別</div>}
-      </div>
-    </div>
-  );
-}
 
-/* ─── AdminManageView ────────────────────────────────────────────────────── */
-function AdminManageView({ secs, onUpdate, onBack, onBackToList, onBatchClose, showToast }) {
-  const [search, setSearch] = useState('');
-  const [sel, setSel] = useState([]);
-  const filt = secs.filter(s => !search.trim()||s.name.includes(search));
-  const selectable = filt.filter(s => !s.alwaysOn);
-  const allC = sel.length===selectable.length&&selectable.length>0;
-  const indet = sel.length>0&&sel.length<selectable.length;
-  const hasSel = sel.length > 0;
-  const bOpen = () => { onUpdate(secs.map(s=>sel.includes(s.id)?{...s,vis:true}:s)); showToast('已成功開啟班別停修功能'); };
-
-  return (
-    <div style={{display:'flex',flexDirection:'column',gap:14}}>
-      <div style={{fontSize:14,display:'flex',alignItems:'center',gap:6}}>
-        <button onClick={onBackToList} className="mui-btn mui-text" style={{background:'none',border:'none',cursor:'pointer',color:'rgba(0,0,0,0.6)',fontSize:14,padding:'2px 4px'}}>停修申請設定</button>
-        <span style={{color:'rgba(0,0,0,0.35)',margin:'0 2px'}}>/</span>
-        <button onClick={onBack} className="mui-btn mui-text" style={{background:'none',border:'none',cursor:'pointer',color:'rgba(0,0,0,0.6)',fontSize:14,padding:'2px 4px'}}>編輯班別設定</button>
-        <span style={{color:'rgba(0,0,0,0.35)',margin:'0 2px'}}>/</span>
-        <span style={{color:'rgba(0,0,0,0.87)',fontSize:14,padding:'2px 4px'}}>管理班別</span>
-      </div>
-      <h2 style={{fontSize:32,fontWeight:400,color:'#333',margin:0}}>管理班別</h2>
-      <div style={{display:'flex',alignItems:'center',gap:16}}>
-        <MuiTextField label="搜尋班別" value={search} onChange={ev=>setSearch(ev.target.value)} style={{width:220,flexShrink:0}}/>
-        <span style={{fontSize:14,color:'rgba(0,0,0,0.6)',whiteSpace:'nowrap'}}>已選取 {sel.length} 個班別</span>
-        <AdminBtn onClick={bOpen} disabled={!hasSel}>批次開啟</AdminBtn>
-        <AdminBtn onClick={()=>{const t=secs.filter(s=>sel.includes(s.id)&&!s.alwaysOn);onBatchClose(t);}} disabled={!hasSel}>批次關閉</AdminBtn>
-      </div>
-      <div style={{border:'1px solid rgba(0,0,0,0.12)',borderRadius:4,overflow:'hidden',maxWidth:640}}>
-        <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead><tr style={{background:'#f5f5f5',height:48}}>
-            <th style={{width:44,padding:'0 8px',textAlign:'center'}}><TriCb checked={allC} indet={indet} onChange={ev=>setSel(ev.target.checked?selectable.map(s=>s.id):[])}/></th>
-            <th style={{textAlign:'left',padding:'0 8px',fontSize:13,fontWeight:500}}>班別名稱</th>
-            <th style={{textAlign:'right',padding:'0 14px',fontSize:13,fontWeight:500,width:118}}>開放申請停修</th>
-          </tr></thead>
-          <tbody>{filt.map(sec=>(
-            <tr key={sec.id} style={{height:50,borderTop:'1px solid rgba(0,0,0,0.06)',background:sel.includes(sec.id)?'rgba(0,153,204,0.08)':'white'}}>
-              <td style={{padding:'0 8px',textAlign:'center'}}>
-                {sec.alwaysOn
-                  ? <input type="checkbox" disabled style={{width:17,height:17,visibility:'hidden'}}/>
-                  : <input type="checkbox" checked={sel.includes(sec.id)} onChange={ev=>setSel(p=>ev.target.checked?[...p,sec.id]:p.filter(x=>x!==sec.id))} style={{accentColor:AC,width:17,height:17,cursor:'pointer'}}/>}
-              </td>
-              <td style={{padding:'0 8px',fontSize:13}}>{sec.name}</td>
-              <td style={{padding:'0 14px',textAlign:'right'}}>
-                <MuiTooltip title={sec.alwaysOn ? '此班別已有停修申請' : ''}>
-                  <Tog on={sec.vis} onChange={()=>{
-                    if(sec.vis){ onBatchClose([sec]); }
-                    else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:true}:s)); showToast('已成功開啟班別停修功能'); }
-                  }} disabled={sec.alwaysOn}/>
-                </MuiTooltip>
-              </td>
-            </tr>
-          ))}</tbody>
-        </table>
+      {/* Accordion 2 — 關閉停修功能班別 */}
+      <div style={{border:'1px solid rgba(0,0,0,0.12)',borderRadius:4,overflow:'hidden'}}>
+        <div onClick={()=>setAcc2Open(v=>!v)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 16px',height:52,cursor:'pointer',userSelect:'none',background:'white'}}>
+          <span style={{fontSize:16,color:'#333'}}>關閉停修功能班別</span>
+          <span style={{fontSize:18,color:'rgba(0,0,0,0.54)',display:'inline-block',transform:acc2Open?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s'}}>▾</span>
+        </div>
+        {acc2Open && renderTable(closedSecs, allC2, indet2, c=>{
+          const ids = closedSecs.map(s=>s.id);
+          setSel(p => c ? [...new Set([...p,...ids])] : p.filter(x=>!ids.includes(x)));
+        })}
       </div>
     </div>
   );
 }
 
 /* ─── Student View ───────────────────────────────────────────────────────── */
+function NoticeContent() {
+  const R = ({children}) => <span style={{color:'#CC0000'}}>{children}</span>;
+  return (
+    <div style={{fontSize:16, lineHeight:1.5, color:'#333'}}>
+      <p style={{margin:'0 0 12px'}}>各位 TAICA 盟校同學好：</p>
+      <p style={{margin:'0 0 12px'}}>依據 TAICA 計畫辦公室的規範，TAICA 盟校學生如欲退選「生成式人工智慧與機器學習導論」之鏡像課程，需經過主授教師的同意。</p>
+      <p style={{margin:'0 0 12px'}}>本頁面上方已提供同學需完成「期中停修意願申請表單」的填寫時程、以及主授教師需完成核准的時程供您參考。</p>
+      <p style={{margin:'0 0 12px'}}>NTU COOL 團隊將在 11/19 (三) 下班前，依照主授老師於本表單的核定結果，將主授教師同意的退選同學從課程中刪除。</p>
+      <p style={{margin:'0 0 8px'}}>敬請同學留意：</p>
+      <ul style={{margin:'0 0 12px', paddingLeft:20}}>
+        <li style={{marginBottom:10}}>「期中停修意願申請表單」<R>僅能填寫一次</R>，且送出後<R>無法撤回</R>。送出前，請務必核對所填寫之表單上的<R>課名</R>，是否為所欲申請停修的課程，以及確認填答內容是否正確。<R>敬請確認填寫內容皆正確再送出</R>。</li>
+        <li>依據 TAICA 計畫辦公室的規定，<R>同學一旦完成在 NTU COOL 上的「期中停修意願申請表單」的填寫並獲主授教師同意，即視為已經完成停修手續。</R>後續同學需自行依照所屬學校的退選流程完成校內停修手續。若有同學有填寫表單且獲主授教師同意，但並未確實依照所屬學校的停修流程，完成校內停修手續，若有任何後果同學需自行負責。</li>
+      </ul>
+      <p style={{margin:'0 0 2px'}}>以上說明，</p>
+      <p style={{margin:'0 0 2px'}}>若有任何與表單填寫相關之問題，歡迎來信或來電詢問 NTU COOL 團隊；</p>
+      <p style={{margin:'0 0 12px'}}>如有任何期中停修相關行政問題，請洽貴校 TAICA 窗口，謝謝您。</p>
+      <p style={{margin:'0 0 2px'}}>NTU COOL 平臺團隊 敬上</p>
+      <p style={{margin:'0 0 2px'}}>ntucool@ntu.edu.tw</p>
+      <p style={{margin:0}}>02-3366-3367 #594</p>
+    </div>
+  );
+}
+
 function StudentView({ application, onSubmit, courseSettings }) {
   const [reason, setReason] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [noticeExpanded, setNoticeExpanded] = useState(false);
+
   const hasSubmitted = application.status !== '未申請';
   const isDisabled = !reason.trim() || !confirmed;
   const cs = courseSettings || { st:'2026/05/04 00:00', et:'2026/05/11 23:59', ad:'2026/05/13 23:59', notes:'' };
   const isAppExpired = !hasSubmitted && !!cs.et && (new Date(cs.et.replace(/\//g, '-').replace(' ', 'T')) < new Date());
 
+  const noticeContent = cs.notes
+    ? <div className="ql-editor" style={{padding:0,fontSize:16,color:'#333',lineHeight:1.5,minHeight:'auto'}} dangerouslySetInnerHTML={{__html: cs.notes}} />
+    : <NoticeContent />;
+
   return (
     <div style={{ padding:'24px 24px 64px' }}>
-      <h1 style={{ fontSize:32, fontWeight:400, color:'#333', marginBottom:24, letterSpacing:'-1.5px' }}>停修申請</h1>
-      <div style={{ display:'flex', gap:24, alignItems:'flex-start' }}>
-        {/* Left column */}
-        <div style={{ flex:'1 1 50%', display:'flex', flexDirection:'column', gap:40, minWidth:0 }}>
+      {/* Page title */}
+      <h1 style={{ fontSize:32, fontWeight:400, color:'#333', letterSpacing:'-1.5px', marginBottom:24 }}>停修申請</h1>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+
+        {/* Upper block: course info + notice */}
+        <div style={{ display:'flex', flexDirection:'column', gap:40 }}>
+
+          {/* Course info */}
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <p style={{ fontSize:16, color:'#333', lineHeight:1.75 }}>課程名稱：深度學習 Deep Learning<br/>班別：國立成功大學</p>
+            <p style={{ fontSize:16, color:'#333', lineHeight:1.75, margin:0 }}>
+              課程名稱：深度學習 Deep Learning<br/>班別：國立成功大學
+            </p>
             <table style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, borderCollapse:'collapse', width:'100%' }}>
               <tbody>
                 {[['申請開始時間', cs.st],['申請截止時間', cs.et],['教師審核期限', cs.ad]].map(([l,v],i,a) => (
                   <tr key={l}>
-                    <td style={{ fontSize:12, color:'#333', padding:'8px 16px', borderRight:'1px solid rgba(0,0,0,0.12)', borderBottom:i<a.length-1?'1px solid rgba(0,0,0,0.12)':'none', width:110, whiteSpace:'nowrap' }}>{l}</td>
-                    <td style={{ fontSize:12, color:'#333', padding:'8px 16px', borderBottom:i<a.length-1?'1px solid rgba(0,0,0,0.12)':'none' }}>{v}</td>
+                    <td style={{ fontSize:12, color:'#333', padding:'6px 16px', borderRight:'1px solid rgba(0,0,0,0.12)', borderBottom:i<a.length-1?'1px solid rgba(0,0,0,0.12)':'none', width:110, whiteSpace:'nowrap' }}>{l}</td>
+                    <td style={{ fontSize:12, color:'#333', padding:'6px 16px', borderBottom:i<a.length-1?'1px solid rgba(0,0,0,0.12)':'none' }}>{v}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* Notice section */}
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <p style={{ fontSize:16, fontWeight:700, color:'#333' }}>申請停修注意事項</p>
-            <div style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, padding:16, background:'white', height:320, overflowY:'auto', fontSize:12, color:'#333', lineHeight:1.66 }}>
-              {cs.notes
-                ? <div className="ql-editor" style={{padding:0,fontSize:12,color:'#333',lineHeight:1.66,minHeight:'auto'}} dangerouslySetInnerHTML={{__html: cs.notes}} />
-                : <p style={{ whiteSpace:'pre-wrap' }}>{NOTICE}</p>}
+            <p style={{ fontSize:16, fontWeight:700, color:'#333', margin:0 }}>申請停修注意事項</p>
+            <div style={{ position:'relative' }}>
+              <div style={{
+                border:'1px solid #E0E0E0', borderRadius:4, padding:16, background:'white',
+                maxHeight: noticeExpanded ? 2000 : 200,
+                overflow:'hidden',
+                transition:'max-height 0.4s cubic-bezier(0.4,0,0.2,1)'
+              }}>
+                {noticeContent}
+              </div>
+              {!noticeExpanded && (
+                <div style={{
+                  position:'absolute', bottom:0, left:0, right:0, height:52,
+                  background:'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 53%)',
+                  pointerEvents:'none', borderRadius:'0 0 4px 4px'
+                }} />
+              )}
             </div>
+            <button
+              onClick={() => setNoticeExpanded(v => !v)}
+              style={{
+                alignSelf:'flex-start', display:'flex', alignItems:'center', gap:4,
+                background:'none', border:'none', cursor:'pointer',
+                color:'#0099CC', fontSize:13, fontWeight:500,
+                padding:'4px 5px', fontFamily:'inherit', lineHeight:1.69,
+                letterSpacing:'0.046em'
+              }}
+            >
+              {noticeExpanded ? '收合' : '展開'}
+              <span style={{ display:'flex', transition:'transform 0.3s ease', transform: noticeExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                <ArrowDownIcon size={18} color="#0099CC" />
+              </span>
+            </button>
           </div>
-        </div>
 
-        {/* Right column – form card */}
-        <div style={{ flex:'1 1 50%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, display:'flex', flexDirection:'column', alignSelf:'flex-start', minWidth:0 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:16, borderBottom:'1px solid rgba(0,0,0,0.12)' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:20 }}>
-              <span style={{ fontSize:20, color:'#333' }}>停修申請單</span>
-              <StatusChip status={application.status} />
-            </div>
-            {(application.status==='同意'||application.status==='不同意') && (
-              <button className="mui-btn mui-text-primary" style={{ color:'#0099cc', background:'none', border:'none', cursor:'pointer', fontSize:15, fontWeight:500, padding:'4px 8px', borderRadius:4 }}>列印</button>
-            )}
+        </div>{/* end upper block */}
+
+        {/* Application form card */}
+        <div style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, display:'flex', flexDirection:'column' }}>
+          {/* Form header */}
+          <div style={{ display:'flex', alignItems:'center', padding:16, gap:24, borderBottom:'1px solid rgba(0,0,0,0.12)' }}>
+            <span style={{ fontSize:20, fontWeight:400, color:'#333' }}>停修申請單</span>
+            <StatusChip status={application.status} />
           </div>
 
-          <div style={{ padding:16, display:'flex', flexDirection:'column', gap:16, borderBottom: (hasSubmitted || isAppExpired) ? 'none' : '1px solid rgba(0,0,0,0.12)' }}>
-            <p style={{ fontSize:16, color:'#333', lineHeight:1.5 }}>課程名稱：深度學習 Deep Learning<br/>班別：國立成功大學</p>
+          {/* Form body */}
+          <div style={{ padding:16, display:'flex', flexDirection:'column', gap:16, borderBottom:(hasSubmitted || isAppExpired) ? 'none' : '1px solid rgba(0,0,0,0.12)' }}>
             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-              <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>授課教師：彭文孝、陳永昇、謝秉均</p>
-              {application.approvalTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>審核時間：{application.approvalTime}</p>}
+              <p style={{ fontSize:16, color:'#333', lineHeight:1.5, margin:0 }}>課程名稱：深度學習 Deep Learning</p>
+              <p style={{ fontSize:16, color:'#333', lineHeight:1.5, margin:0 }}>班別：國立成功大學</p>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-              <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>學生姓名：陳O佑</p>
-              <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>登入ID：F34097391@mail.ncku.edu.tw</p>
-              <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>學號：F34097391</p>
+              <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>授課教師：彭文孝、陳永昇、謝秉均</p>
+              {application.approvalTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>審核時間：{application.approvalTime}</p>}
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+              <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>學生姓名：陳O佑</p>
+              <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>登入ID：F34097391@mail.ncku.edu.tw</p>
+              <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>學號：F34097391</p>
             </div>
 
             {hasSubmitted ? (
@@ -1124,7 +1188,6 @@ function StudentView({ application, onSubmit, courseSettings }) {
                 )}
               </div>
             ) : isAppExpired ? (
-              /* ── 申請截止 Alert ── */
               <div style={{ display:'flex', alignItems:'flex-start', padding:'6px 16px', border:'1px solid #CC0000', borderRadius:4, background:'white' }}>
                 <div style={{ padding:'7px 12px 7px 0', display:'flex', flexShrink:0 }}>
                   <ErrorIcon size={22} color="#CC0000" />
@@ -1136,25 +1199,26 @@ function StudentView({ application, onSubmit, courseSettings }) {
               </div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                <MuiTextField multiline rows={3} label="停修原因" value={reason} onChange={e => e.target.value.length<=500 && setReason(e.target.value)} />
-                <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right' }}>{reason.length} / 500</p>
+                <MuiTextField multiline rows={4} label="停修原因" value={reason} onChange={e => e.target.value.length<=500 && setReason(e.target.value)} />
+                <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right', margin:0 }}>{reason.length} / 500</p>
               </div>
             )}
 
             {!hasSubmitted && !isAppExpired && (
               <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
-                <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} style={{ accentColor:'#0099cc', width:18, height:18 }} />
-                <span style={{ fontSize:12, color:'#333' }}>我已詳讀停修規範並確認停修該課程<span style={{ color:'#ff6600' }}>*</span></span>
+                <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} style={{ accentColor:'#0099cc', width:16, height:16, flexShrink:0 }} />
+                <span style={{ fontSize:12, color:'#333' }}>我已詳讀停修規範並確認停修該課程<span style={{ color:'#D63333' }}>*</span></span>
               </label>
             )}
           </div>
 
           {!hasSubmitted && !isAppExpired && (
             <div style={{ padding:8, display:'flex', justifyContent:'flex-end' }}>
-              <button disabled={isDisabled} onClick={() => !isDisabled && onSubmit(reason)} className="mui-btn mui-contained-primary" style={{ background: isDisabled?'rgba(0,0,0,0.12)':'#0099cc', color: isDisabled?'rgba(0,0,0,0.38)':'white', border:'none', borderRadius:4, padding:'6px 12px', fontSize:15, fontWeight:500, cursor: isDisabled?'default':'pointer' }}>提交申請</button>
+              <button disabled={isDisabled} onClick={() => !isDisabled && onSubmit(reason)} className="mui-btn mui-contained-primary" style={{ background: isDisabled?'rgba(0,0,0,0.12)':'#0099cc', color: isDisabled?'rgba(0,0,0,0.38)':'white', border:'none', borderRadius:4, padding:'4px 10px', fontSize:13, fontWeight:500, cursor: isDisabled?'default':'pointer' }}>提交申請</button>
             </div>
           )}
         </div>
+
       </div>
     </div>
   );
@@ -1172,6 +1236,7 @@ function App() {
   const [searchErrorType, setSearchErrorType] = useState(null); // null | 'invalidChars' | 'tooLong'
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
+  const [batchComment, setBatchComment] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [currentStudent, setCurrentStudent] = useState(null);
   const [dlgStatus, setDlgStatus] = useState('');
@@ -1283,18 +1348,18 @@ function App() {
     setTimeout(() => setSuccess(false), 3000);
   };
 
-  const execBatch = ns => {
+  const execBatch = (ns, comment='') => {
     const t=getNow(); const ts=Date.now(); const appr=nextApprover();
     const hasChen = effectiveStudents.some(s => selected.includes(s.id) && s.studentId==='成大_F34097391' && s.status!=='逾期審核');
     const isReversal = effectiveStudents.some(s => selected.includes(s.id) && (s.status==='同意'||s.status==='不同意') && s.status!==ns);
     setStudents(p => p.map(s => {
       if (!selected.includes(s.id) || getEffectiveStatus(s)==='逾期審核') return s;
       const isChen = s.studentId==='成大_F34097391';
-      return { ...s, status:ns, approvalTime:isChen?'2026/05/07 12:30':t, approver:appr, lastModified:ts, comment:undefined };
+      return { ...s, status:ns, approvalTime:isChen?'2026/05/07 12:30':t, approver:appr, lastModified:ts, comment: comment||undefined };
     }));
     if (hasChen) {
       const chen = students.find(s => s.studentId==='成大_F34097391');
-      if (chen) setStudentApp({ status:ns, reason:chen.reason, approvalTime:'2026/05/07 12:30', approver:appr, comment:undefined });
+      if (chen) setStudentApp({ status:ns, reason:chen.reason, approvalTime:'2026/05/07 12:30', approver:appr, comment: comment||undefined });
     }
     setFrozenOrder(filtered.map(s => s.id));
     setStatusFilter('全部');
@@ -1303,8 +1368,11 @@ function App() {
 
   const batchClick = ns => {
     const hasApproved = effectiveStudents.some(s => selected.includes(s.id) && (s.status==='同意'||s.status==='不同意'));
-    if (hasApproved) { setPendingStatus(ns); setConfirmOpen(true); }
-    else execBatch(ns);
+    if (hasApproved) {
+      setPendingStatus(ns);
+      setBatchComment(ns==='同意' ? '批次審核同意停修' : '批次審核不同意停修');
+      setConfirmOpen(true);
+    } else execBatch(ns);
   };
 
   const openReview = s => {
@@ -1416,20 +1484,11 @@ function App() {
                     const cur = adminGetSecs(adminCurCourse.id);
                     adminSaveSecs(adminCurCourse.id, cur.map(s => s.id===updatedSec.id ? updatedSec : s));
                   }}
+                  onUpdate={newSecs => adminSaveSecs(adminCurCourse.id, newSecs)}
                   onEditSec={sec => setAdminSecDlg(sec)}
                   onBatchSecs={secs => setAdminBatchSecs(secs)}
                   onBatchClose={secs => setAdminBatchCloseConf(secs)}
                   onBack={() => setAdminView('list')}
-                  onManage={() => setAdminView('manage')}
-                />
-              )}
-              {adminView==='manage' && adminCurCourse && (
-                <AdminManageView
-                  secs={adminGetSecs(adminCurCourse.id)}
-                  onUpdate={newSecs => adminSaveSecs(adminCurCourse.id, newSecs)}
-                  onBack={() => setAdminView('edit')}
-                  onBackToList={() => setAdminView('list')}
-                  onBatchClose={secs => setAdminBatchCloseConf(secs)}
                   showToast={adminShowToast}
                 />
               )}
@@ -1572,12 +1631,24 @@ function App() {
       {/* ── Confirm override dialog ── */}
       {confirmOpen && (
         <div onClick={() => setConfirmOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'white', borderRadius:8, width:444, padding:'24px', boxShadow:'0 8px 32px rgba(0,0,0,0.2)' }}>
-            <h2 style={{ fontSize:20, fontWeight:500, color:'#333', marginBottom:16 }}>更新審核結果</h2>
-            <p style={{ fontSize:14, color:'#333', lineHeight:1.7, marginBottom:24 }}>您選取的學生中已有審核結果，繼續操作將覆蓋並更新這些學生的狀態，確定要繼續嗎？</p>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:8 }}>
-              <button onClick={() => setConfirmOpen(false)} style={{ background:'transparent', color:'#666', border:'1px solid rgba(0,0,0,0.23)', borderRadius:4, padding:'6px 20px', fontSize:14, cursor:'pointer' }}>取消</button>
-              <button onClick={() => { execBatch(pendingStatus); setConfirmOpen(false); }} style={{ background:'#0099cc', color:'white', border:'none', borderRadius:4, padding:'6px 20px', fontSize:14, fontWeight:500, cursor:'pointer' }}>確定</button>
+          <div onClick={e => e.stopPropagation()} style={{ background:'white', borderRadius:8, width:600, height:570, boxShadow:'0 8px 32px rgba(0,0,0,0.2)', display:'flex', flexDirection:'column' }}>
+            {/* Title */}
+            <div style={{ padding:'16px 24px', borderBottom:'1px solid rgba(0,0,0,0.12)', flexShrink:0 }}>
+              <h2 style={{ fontSize:20, fontWeight:500, color:'#333', margin:0 }}>更新審核結果</h2>
+            </div>
+            {/* Content */}
+            <div style={{ flex:1, padding:'16px 24px', display:'flex', flexDirection:'column', gap:24, overflowY:'auto' }}>
+              <p style={{ fontSize:16, color:'#333', lineHeight:1.5, margin:0 }}>您選取的學生中已有審核結果。繼續操作將覆蓋並更新這些學生的狀態，以及清除評語。確定要繼續嗎？</p>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <p style={{ fontSize:14, fontWeight:500, color:'#333', margin:0 }}>新的審核評語</p>
+                <MuiTextField multiline rows={4} label="審核評語 (選填)" value={batchComment} onChange={e => e.target.value.length<=500 && setBatchComment(e.target.value)} />
+                <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right', margin:0 }}>{batchComment.length} / 500</p>
+              </div>
+            </div>
+            {/* Actions */}
+            <div style={{ padding:8, display:'flex', justifyContent:'flex-end', gap:8, flexShrink:0, borderTop:'1px solid rgba(0,0,0,0.12)' }}>
+              <button onClick={() => setConfirmOpen(false)} className="mui-btn mui-text-primary" style={{ background:'transparent', color:'#0099cc', border:'none', borderRadius:4, padding:'6px 8px', fontSize:16, fontWeight:500, cursor:'pointer' }}>取消</button>
+              <button onClick={() => { execBatch(pendingStatus, batchComment); setConfirmOpen(false); }} className="mui-btn mui-contained-primary" style={{ background:'#0099cc', color:'white', border:'none', borderRadius:4, padding:'6px 16px', fontSize:16, fontWeight:500, cursor:'pointer' }}>確定</button>
             </div>
           </div>
         </div>
@@ -1617,7 +1688,7 @@ function App() {
               setAdminCS(prev => ({ ...prev, [c.id]: mkSecs(toDsp(st), toDsp(et), toDsp(ap), notes) }));
             });
             setAdminAddOpen(false);
-            adminShowToast('課程已成功新增');
+            adminShowToast('已成功開啟課程停修功能');
           }}
         />
       )}
@@ -1631,7 +1702,7 @@ function App() {
             const cur = adminGetSecs(adminCurCourse.id);
             adminSaveSecs(adminCurCourse.id, cur.map(s => s.id===updatedSec.id ? updatedSec : s));
             setAdminSecDlg(null);
-            adminShowToast('班別設定已成功儲存');
+            adminShowToast('已成功儲存班別設定');
           }}
         />
       )}
@@ -1646,7 +1717,7 @@ function App() {
             const cur = adminGetSecs(adminCurCourse.id);
             adminSaveSecs(adminCurCourse.id, cur.map(s => ids.has(s.id) ? (updatedSecs.find(u => u.id===s.id) || s) : s));
             setAdminBatchSecs(null);
-            adminShowToast('批次設定已成功儲存');
+            adminShowToast('已成功儲存班別設定');
           }}
         />
       )}
@@ -1654,8 +1725,8 @@ function App() {
       {/* ── Admin BatchClose confirm ── */}
       {adminBatchCloseConf && adminCurCourse && (
         <AdminConfirmDlg
-          title="關閉班別"
-          body={`確定要關閉 ${adminBatchCloseConf.length} 個班別的停修申請嗎？`}
+          title="即將關閉班別停修功能"
+          body="欲關閉的班別中已有停修申請，您確定要關閉？"
           onCancel={() => setAdminBatchCloseConf(null)}
           onConfirm={() => {
             const ids = new Set(adminBatchCloseConf.map(s => s.id));
@@ -1691,9 +1762,12 @@ function App() {
               </div>
 
               {currentStudent.status==='逾期審核' && (
-                <div style={{ background:'rgba(255,152,0,0.08)', border:'1px solid rgba(255,152,0,0.5)', borderRadius:4, padding:'10px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
-                  <WarningIcon size={22} />
-                  <p style={{ fontSize:14, color:'#333', lineHeight:1.57 }}>此學生已逾期審核期限，系統已自動視為「不同意停修」。</p>
+                <div style={{ background:'#FFF4E5', borderRadius:4, padding:'6px 16px', display:'flex', gap:8, alignItems:'flex-start' }}>
+                  <WarningIcon size={22} color="#663C00" style={{marginTop:2,flexShrink:0}}/>
+                  <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                    <p style={{ fontSize:16, fontWeight:500, color:'#663C00', lineHeight:1.5, margin:0 }}>學生所屬班別的審核期限已過</p>
+                    <p style={{ fontSize:14, fontWeight:400, color:'#663C00', lineHeight:1.43, margin:0 }}>若需要調整學生申請狀態，請聯繫 COOL 團隊。</p>
+                  </div>
                 </div>
               )}
 
