@@ -1094,16 +1094,14 @@ function StudentView({ application, onSubmit, courseSettings }) {
             <p style={{ fontSize:16, color:'#333', lineHeight:1.75, margin:0 }}>
               課程名稱：深度學習 Deep Learning<br/>班別：國立成功大學
             </p>
-            <table style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, borderCollapse:'collapse', width:'100%' }}>
-              <tbody>
-                {[['申請開始時間', cs.st],['申請截止時間', cs.et],['教師審核期限', cs.ad]].map(([l,v],i,a) => (
-                  <tr key={l}>
-                    <td style={{ fontSize:12, color:'#333', padding:'6px 16px', borderRight:'1px solid rgba(0,0,0,0.12)', borderBottom:i<a.length-1?'1px solid rgba(0,0,0,0.12)':'none', width:110, whiteSpace:'nowrap' }}>{l}</td>
-                    <td style={{ fontSize:12, color:'#333', padding:'6px 16px', borderBottom:i<a.length-1?'1px solid rgba(0,0,0,0.12)':'none' }}>{v}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, display:'flex', width:'100%' }}>
+              {[['申請開始時間', cs.st],['申請截止時間', cs.et],['教師審核期限', cs.ad]].map(([l,v],i,a) => (
+                <div key={l} style={{ flex:1, display:'flex', flexDirection:'column', borderRight:i<a.length-1?'1px solid rgba(0,0,0,0.12)':'none' }}>
+                  <div style={{ fontSize:12, color:'#333', padding:'6px 16px', borderBottom:'1px solid rgba(0,0,0,0.12)', letterSpacing:'0.4px' }}>{l}</div>
+                  <div style={{ fontSize:12, color:'#333', padding:'6px 16px', letterSpacing:'0.4px' }}>{v}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Notice section */}
