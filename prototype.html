@@ -1010,8 +1010,10 @@ function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBa
               <button onClick={()=>onEditSec(sec)} className="mui-btn mui-icon" style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'inline-flex',color:'rgba(0,0,0,0.5)'}}><EditIcon size={18}/></button>
               <Tog on={sec.vis} onChange={()=>{
                 setSel(p => [...new Set([...p, sec.id])]);
-                if(sec.vis){ onBatchClose([sec]); }
-                else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:true}:s)); showToast('已成功開啟班別停修功能'); }
+                if(sec.vis){
+                  if(getCount(sec.id)>0){ onBatchClose([sec]); }
+                  else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:false}:s)); showToast('已成功關閉班別停修功能'); }
+                } else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:true}:s)); showToast('已成功開啟班別停修功能'); }
               }}/>
               </div>
             </td>
@@ -1039,7 +1041,14 @@ function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBa
         <AdminBtn onClick={()=>onBatchSecs(secs.filter(s=>sel.includes(s.id)))} disabled={!hasSel} icon="Edit">批次編輯設定</AdminBtn>
         <div style={{width:1,height:36,background:'rgba(0,0,0,0.12)',flexShrink:0}}/>
         <AdminBtn onClick={batchOpen} disabled={!hasSel} variant="outline">批次開啟</AdminBtn>
-        <AdminBtn onClick={()=>onBatchClose(secs.filter(s=>sel.includes(s.id)))} disabled={!hasSel} variant="outline">批次關閉</AdminBtn>
+        <AdminBtn onClick={()=>{
+          const selected = secs.filter(s=>sel.includes(s.id));
+          const withApps = selected.filter(s=>getCount(s.id)>0);
+          const noApps   = selected.filter(s=>getCount(s.id)===0);
+          if(noApps.length>0) onUpdate(secs.map(s=>noApps.some(n=>n.id===s.id)?{...s,vis:false}:s));
+          if(withApps.length>0) onBatchClose(withApps);
+          else showToast('已成功關閉班別停修功能');
+        }} disabled={!hasSel} variant="outline">批次關閉</AdminBtn>
       </div>
 
       {/* Accordion 1 — 開啟停修功能班別 */}
