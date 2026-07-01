@@ -85,7 +85,7 @@ const CDB = {
   '57672':{s:'114-2 (2026 Spring)',n:'生成式AI 的人文導論'},
 };
 const mkSecs = (st,et,ad,notes) =>
-  BASE_SECS.map(b=>({...b,st:st||'2026/05/04 00:00',et:et||'2026/06/30 23:59',ad:ad||'2026/07/13 23:59',op:'admin2',ot:'2026/03/17 16:54',vis:['1','2','3','4'].includes(b.id),notes:notes||''}));
+  BASE_SECS.map(b=>({...b,st:st||'2026/07/01 00:00',et:et||'2026/07/25 23:59',ad:ad||'2026/08/08 23:59',op:'admin2',ot:'2026/03/17 16:54',vis:['1','2','3','4','5'].includes(b.id),notes:notes||''}));
 const initCS = () => { const o={}; INIT_COURSES.forEach(c=>{o[c.id]=mkSecs();}); return o; };
 const toDsp = v => { if(!v) return ''; const [d,t]=v.split('T'); return `${d.replace(/-/g,'/')} ${(t||'').slice(0,5)}`; };
 const toInp = v => { if(!v) return ''; const [d,t]=v.split(' '); return `${(d||'').replace(/\//g,'-')}T${t||''}`; };
@@ -121,17 +121,18 @@ const statusOrder = { '待審核':1, '逾期審核':2, '同意':3, '不同意':4
 
 const tableStatusSt = {
   '待審核':  { background:'#0099cc', color:'white', border:'none' },
-  '逾期審核': { background:'transparent', color:'rgba(0,0,0,0.38)', border:'1px solid rgba(0,0,0,0.38)' },
-  '同意':    { background:'rgba(0,138,0,0.04)', color:'#008a00', border:'1px solid #008a00' },
-  '不同意':  { background:'rgba(204,0,0,0.04)', color:'#cc0000', border:'1px solid #cc0000' },
+  '逾期審核': { background:'transparent', color:'rgba(51,51,51,0.6)', border:'1px solid rgba(0,0,0,0.38)' },
+  '同意':    { background:'rgba(0,138,0,0.04)', color:'#008A00', border:'1px solid rgba(0,138,0,0.5)' },
+  '不同意':  { background:'rgba(204,0,0,0.04)', color:'#CC0000', border:'1px solid rgba(204,0,0,0.5)' },
 };
 const chipSt = {
-  '待審核':  { background:'#0099cc', color:'white' },
-  '同意':    { background:'#008a00', color:'white' },
-  '不同意':  { background:'#cc0000', color:'white' },
-  '逾期審核': { background:'rgba(0,0,0,0.38)', color:'white' },
-  '未申請':  { background:'rgba(0,0,0,0.08)', color:'rgba(0,0,0,0.38)' },
+  '待審核':  { background:'#0099CC', color:'#FFFFFF', border:'none' },
+  '同意':    { background:'transparent', color:'#008A00', border:'1px solid #008A00' },
+  '不同意':  { background:'transparent', color:'#CC0000', border:'1px solid #CC0000' },
+  '逾期審核': { background:'transparent', color:'rgba(51,51,51,0.6)', border:'1px solid rgba(0,0,0,0.38)' },
+  '未申請':  { background:'rgba(0,0,0,0.08)', color:'#333333', border:'1px solid rgba(0,0,0,0.38)', opacity:0.38 },
 };
+const chipLabel = { '同意':'同意停修', '不同意':'不同意停修' };
 
 /* ─── Icons (inline SVG — no CDN required) ───────────────────────────────── */
 function OpenInNewIcon({ size = 18, style = {} }) {
@@ -176,12 +177,22 @@ function ErrorIcon({ size=18, color='currentColor' }) {
 function CheckCircleIcon({ size=18, color='currentColor' }) {
   return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color} style={{display:'block',flexShrink:0}}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>;
 }
+function MuiSwitch({ checked }) {
+  return (
+    <span style={{display:'inline-block',width:34,height:14,borderRadius:7,background:checked?'rgba(0,153,204,0.5)':'rgba(0,0,0,0.38)',position:'relative',verticalAlign:'middle',flexShrink:0,transition:'background 0.2s'}}>
+      <span style={{position:'absolute',top:-3,left:checked?16:2,width:20,height:20,borderRadius:'50%',background:checked?'#0099CC':'#FAFAFA',boxShadow:'0 1px 3px rgba(0,0,0,0.4)',transition:'left 0.15s'}}/>
+    </span>
+  );
+}
 function EditIcon({ size = 14 }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ display:'block', flexShrink:0 }}>
       <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
     </svg>
   );
+}
+function InfoIcon({ size = 22, color = '#006699' }) {
+  return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color} style={{display:'block',flexShrink:0}}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>;
 }
 function WarningIcon({ size = 22 }) {
   return (
@@ -446,9 +457,10 @@ function ExportSplitButton() {
 }
 
 /* ─── Status Chip ────────────────────────────────────────────────────────── */
-function StatusChip({ status }) {
+function StatusChip({ status, label: labelOverride }) {
   const s = chipSt[status] || chipSt['未申請'];
-  return <span style={{display:'inline-flex',alignItems:'center',padding:'2px 10px',borderRadius:100,fontSize:13,height:24,whiteSpace:'nowrap',...s}}>{status}</span>;
+  const label = labelOverride ?? (chipLabel[status] || status);
+  return <span style={{display:'inline-flex',alignItems:'center',padding:'2px 10px',borderRadius:100,fontSize:13,height:24,whiteSpace:'nowrap',...s}}>{label}</span>;
 }
 
 /* ─── Accordion ─────────────────────────────────────────────────────────── */
@@ -466,7 +478,7 @@ function AccordionItem({ title, children, noBorderTop }) {
 }
 
 /* ─── QuillEditor ────────────────────────────────────────────────────────── */
-function QuillEditor({ value, onChange, placeholder, disabled }) {
+function QuillEditor({ value, onChange, placeholder, disabled, height }) {
   const containerRef = useRef(null);
   const quillRef = useRef(null);
   const lastValRef = useRef(value);
@@ -493,6 +505,7 @@ function QuillEditor({ value, onChange, placeholder, disabled }) {
       onChange(out);
     });
     if (disabled) q.enable(false);
+    if (height) { q.root.style.minHeight = height + 'px'; q.root.style.height = height + 'px'; q.root.style.overflowY = 'auto'; }
     quillRef.current = q;
     return () => { quillRef.current = null; };
   }, []);
@@ -567,12 +580,13 @@ function TriCb({ checked, indet, onChange }) {
 
 function Tog({ on, onChange, disabled }) {
   const isOn = disabled ? true : on;
-  const trackBg = disabled ? 'rgba(0,153,204,0.5)' : isOn ? AC : 'rgba(0,0,0,0.38)';
+  const trackBg = isOn ? 'rgba(0,153,204,0.5)' : 'rgba(0,0,0,0.38)';
+  const thumbBg = isOn ? '#0099CC' : '#FAFAFA';
   return (
-    <div onClick={disabled ? undefined : onChange}
-      style={{display:'inline-block',width:44,height:24,borderRadius:12,cursor:disabled?'not-allowed':'pointer',background:trackBg,position:'relative',transition:'background .2s',flexShrink:0,opacity:disabled?0.8:1}}>
-      <div style={{width:20,height:20,borderRadius:'50%',background:'white',position:'absolute',top:2,left:isOn?22:2,transition:'left .2s',opacity:disabled?0.7:1}}/>
-    </div>
+    <span onClick={disabled ? undefined : onChange}
+      style={{display:'inline-block',width:34,height:14,borderRadius:7,background:trackBg,position:'relative',cursor:disabled?'not-allowed':'pointer',transition:'background .2s',flexShrink:0,verticalAlign:'middle',opacity:disabled?0.5:1}}>
+      <span style={{position:'absolute',top:-3,left:isOn?16:2,width:20,height:20,borderRadius:'50%',background:thumbBg,boxShadow:'0 1px 3px rgba(0,0,0,0.4)',transition:'left .15s'}}/>
+    </span>
   );
 }
 
@@ -682,42 +696,40 @@ function AdminDateField({ label, value, onChange, errMsg }) {
 
 /* ─── AddDlg ─────────────────────────────────────────────────────────────── */
 function AddDlg({ onClose, onDone, courses }) {
-  const STEPS = ['輸入課程','輸入預設申請時間','完成'];
-  const [step, setStep] = useState(0);
-  const [inp, setInp] = useState('');
-  const [added, setAdded] = useState([]);
+  const [inp, setInp]         = useState('');
+  const [added, setAdded]     = useState([]);
   const [errInline, setErrInline] = useState('');
-  const [dlgAlert, setDlgAlert] = useState(null);
+  const [dlgAlert, setDlgAlert]   = useState(null);
   const [st, setSt] = useState('');
   const [et, setEt] = useState('');
   const [ap, setAp] = useState('');
   const [notes, setNotes] = useState('');
 
   const clearErrs = () => { setErrInline(''); setDlgAlert(null); };
+
   const addC = () => {
     const id = inp.trim();
     if (!id) return;
     if (!/^\d+$/.test(id)) { setErrInline('請輸入半形數字'); setDlgAlert(null); return; }
     setErrInline('');
-    if (added.some(c => c.courseId===id)) { setDlgAlert({type:'error',msg:'已加入此課程'}); return; }
-    if (courses && courses.some(c => c.courseId===id)) { setDlgAlert({type:'error',msg:'已將此課程啟用停修功能'}); return; }
+    if (added.some(c => c.courseId === id)) { setDlgAlert({ type:'error', msg:'已加入此課程' }); return; }
+    if (courses && courses.some(c => c.courseId === id)) { setDlgAlert({ type:'error', msg:'已將此課程啟用停修功能' }); return; }
     const d = CDB[id];
-    if (!d) { setDlgAlert({type:'warning',msg:'查找不到此 ID 的課程'}); return; }
-    setAdded(p => [...p, {id:'t'+Date.now(), courseId:id, semester:d.s, courseName:d.n}]);
+    if (!d) { setDlgAlert({ type:'warning', msg:'查找不到此 ID 的課程' }); return; }
+    setAdded(p => [...p, { id:'t'+Date.now(), courseId:id, semester:d.s, courseName:d.n }]);
     setInp('');
-    setDlgAlert({type:'success',msg:'已成功加入課程'});
-    setTimeout(() => setDlgAlert(a => a?.type==='success'?null:a), 3000);
+    setDlgAlert({ type:'success', msg:'已成功加入課程' });
+    setTimeout(() => setDlgAlert(a => a?.type==='success' ? null : a), 3000);
   };
 
-  const tE = mkTErr(st,et,ap);
-  const anyE = st&&et&&ap&&(tE('st')||tE('et')||tE('ap'));
-  const canNext = step===0?added.length>0:step===1?(st&&et&&ap&&!anyE):true;
-  const doNext = () => { if (step===STEPS.length-1) { onDone({courses:added,st,et,ap,notes}); } else setStep(p=>p+1); };
+  const tE = mkTErr(st, et, ap);
+  const anyTimeErr = st && et && ap && (tE('st') || tE('et') || tE('ap'));
+  const canDone = added.length > 0 && st && et && ap && !anyTimeErr;
 
   const ALERT_CFG = {
-    success:{bg:'#e8f5e9',Icon:CheckCircleIcon,c:'#2e7d32'},
-    error:{bg:'#fde8e8',Icon:ErrorIcon,c:'#c62828'},
-    warning:{bg:'#fff8e1',Icon:WarningIcon,c:'#e65100'},
+    success: { bg:'#e8f5e9', Icon:CheckCircleIcon, c:'#2e7d32' },
+    error:   { bg:'#fde8e8', Icon:ErrorIcon,       c:'#c62828' },
+    warning: { bg:'#fff8e1', Icon:WarningIcon,      c:'#e65100' },
   };
   const alertEl = dlgAlert && (() => {
     const cfg = ALERT_CFG[dlgAlert.type];
@@ -733,65 +745,79 @@ function AddDlg({ onClose, onDone, courses }) {
   const footer = (
     <>
       <button onClick={onClose} className="mui-btn mui-text-primary" style={{background:'none',border:'none',color:AC,cursor:'pointer',fontSize:14,padding:'6px 8px'}}>取消</button>
-      <div style={{flex:1}}/>
-      {step>0&&step<STEPS.length-1 && <AdminBtn onClick={()=>setStep(p=>p-1)}>上一步</AdminBtn>}
-      <AdminBtn onClick={doNext} disabled={!canNext}>{step===STEPS.length-1?'完成':'下一步'}</AdminBtn>
+      <AdminBtn onClick={() => canDone && onDone({courses:added,st,et,ap,notes})} disabled={!canDone}>完成</AdminBtn>
     </>
   );
 
   return (
-    <AdminDlg onClose={onClose} footer={footer} overlayAlert={alertEl}>
-      <AdminStepper steps={STEPS} active={step}/>
-      <div style={{height:1,background:'rgba(0,0,0,0.12)',margin:'0 -24px 14px'}}/>
-      {step===0 && (
-        <div>
-          <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:12}}>
-            <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
-              <MuiTextField label="課程 ID" value={inp} onChange={ev=>{setInp(ev.target.value);clearErrs();}} onKeyDown={ev=>ev.key==='Enter'&&addC()} error={!!errInline} helperText={errInline||''} style={{width:200}}/>
-              <AdminBtn onClick={addC} variant="outline" icon="Plus" style={{marginTop:0,flexShrink:0}}>加入</AdminBtn>
-            </div>
-            <p style={{fontSize:12,color:'rgba(0,0,0,0.45)'}}>Prototype 輸入 61113、57672 模擬新增課程</p>
+    <AdminDlg title="新增開放停修課程" onClose={onClose} footer={footer} overlayAlert={alertEl}>
+      <div style={{display:'flex',flexDirection:'column',gap:40,paddingTop:8}}>
+
+        {/* ── Section 1: Course Input ── */}
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
+            <MuiTextField
+              label="課程 ID"
+              value={inp}
+              onChange={ev => { setInp(ev.target.value); clearErrs(); }}
+              onKeyDown={ev => ev.key==='Enter' && addC()}
+              error={!!errInline}
+              helperText={errInline || ''}
+              style={{width:220}}
+            />
+            <AdminBtn onClick={addC} variant="outline" style={{marginTop:4,flexShrink:0}}>加入</AdminBtn>
           </div>
-          <hr style={{borderColor:'rgba(0,0,0,0.12)',margin:0}}/>
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr>{[['課程 ID',90],['學期',160],['課程名稱',null],['',36]].map(([h,w],i)=>(
-              <th key={i} style={{textAlign:'left',padding:'8px',fontSize:12,color:'rgba(0,0,0,0.6)',fontWeight:400,width:w||undefined}}>{h}</th>
-            ))}</tr></thead>
-            <tbody>{added.map(c=>(
-              <tr key={c.id} style={{borderTop:'1px solid rgba(0,0,0,0.06)'}}>
-                <td style={{padding:'8px',fontSize:13}}>{c.courseId}</td>
-                <td style={{padding:'8px',fontSize:13}}>{c.semester}</td>
-                <td style={{padding:'8px',fontSize:13}}>{c.courseName}</td>
-                <td style={{padding:'8px'}}><button onClick={()=>setAdded(p=>p.filter(x=>x.id!==c.id))} style={{background:'none',border:'none',cursor:'pointer',padding:2,display:'flex'}}><CloseIcon size={16}/></button></td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      )}
-      {step===1 && (
-        <div style={{display:'flex',flexDirection:'column',gap:16,flex:1,minHeight:0}}>
+          <p style={{fontSize:12,color:'rgba(0,0,0,0.45)',margin:0}}>Prototype 輸入 61113、57672 模擬新增課程</p>
+
+          {/* Mini table */}
           <div>
-            <p style={{fontSize:15,marginBottom:10,color:'rgba(0,0,0,0.87)'}}>預設申請與審核期間</p>
-            <div style={{display:'flex',gap:14}}>
+            <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid rgba(0,0,0,0.12)'}}>
+                  {[['課程 ID',80],['學期',140],['課程名稱',null],['',32]].map(([h,w],i) => (
+                    <th key={i} style={{textAlign:'left',padding:'6px 8px',fontSize:12,color:'rgba(51,51,51,0.6)',fontWeight:400,letterSpacing:'0.4px',width:w||undefined}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {added.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{padding:'10px 8px',fontSize:14,color:'#333'}}>您尚未加入任何課程</td>
+                  </tr>
+                ) : added.map(c => (
+                  <tr key={c.id} style={{borderTop:'1px solid rgba(0,0,0,0.06)'}}>
+                    <td style={{padding:'8px',fontSize:13,color:'#333'}}>{c.courseId}</td>
+                    <td style={{padding:'8px',fontSize:13,color:'#333'}}>{c.semester}</td>
+                    <td style={{padding:'8px',fontSize:13,color:'#333'}}>{c.courseName}</td>
+                    <td style={{padding:'8px'}}>
+                      <button onClick={() => setAdded(p => p.filter(x => x.id !== c.id))} style={{background:'none',border:'none',cursor:'pointer',padding:2,display:'flex'}}>
+                        <CloseIcon size={16}/>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── Section 2: Withdrawal Info ── */}
+        <div style={{display:'flex',flexDirection:'column',gap:24}}>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <p style={{fontSize:16,color:'rgba(51,51,51,0.6)',margin:0,lineHeight:1.75}}>預設申請與審核期間</p>
+            <div style={{display:'flex',gap:16}}>
               <AdminDateField label="申請開始時間" value={st} onChange={setSt} errMsg={tE('st')}/>
               <AdminDateField label="申請截止時間" value={et} onChange={setEt} errMsg={tE('et')}/>
               <AdminDateField label="教師審核期限" value={ap} onChange={setAp} errMsg={tE('ap')}/>
             </div>
           </div>
-          <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
-            <p style={{fontSize:15,marginBottom:6,color:'rgba(0,0,0,0.87)'}}>預設停修申請注意事項</p>
-            <QuillEditor value={notes} onChange={setNotes} />
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            <p style={{fontSize:16,color:'rgba(51,51,51,0.6)',margin:0,lineHeight:1.75}}>預設停修申請注意事項</p>
+            <QuillEditor value={notes} onChange={setNotes} height={400} />
           </div>
         </div>
-      )}
-      {step===2 && (
-        <div style={{display:'flex',alignItems:'center',gap:24,padding:'32px 0 16px'}}>
-          <CheckCircleIcon size={100} color="#008A00"/>
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            <span style={{fontSize:20,fontWeight:400,color:'#008A00',lineHeight:'123.5%'}}>已成功開啟課程停修功能</span>
-          </div>
-        </div>
-      )}
+
+      </div>
     </AdminDlg>
   );
 }
@@ -879,7 +905,7 @@ function BatchDlg({ secs, onClose, onSave }) {
 }
 
 /* ─── AdminListView ──────────────────────────────────────────────────────── */
-function AdminListView({ courses, setCourses, semester, setSemester, cSearch, setCSearch, onEdit, onAdd }) {
+function AdminListView({ courses, setCourses, semester, setSemester, cSearch, setCSearch, onEdit, onAdd, appCounts }) {
   const cErr = cSearch.length > 50 ? '字數上限為 50 字' : '';
   const filt = courses.filter(c => c.semester===semester && (!cSearch.trim()||c.courseName.toLowerCase().includes(cSearch.toLowerCase())));
   return (
@@ -901,19 +927,19 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
             <th style={{textAlign:'left',padding:'0 14px',fontSize:13,fontWeight:500,width:165}}>學期</th>
             <th style={{textAlign:'left',padding:'0 14px',fontSize:13,fontWeight:500,width:88}}>課程 ID</th>
             <th style={{textAlign:'left',padding:'0 14px',fontSize:13,fontWeight:500}}>課程名稱</th>
-            <th style={{width:95}}/>
+            <th style={{textAlign:'center',padding:'0 14px',fontSize:13,fontWeight:500,width:80}}>申請數</th>
+            <th style={{width:100}}/>
           </tr></thead>
           <tbody>{filt.map(c => (
             <tr key={c.id} style={{height:50,borderTop:'1px solid rgba(0,0,0,0.06)'}}>
               <td style={{padding:'0 14px',fontSize:13}}>{c.semester}</td>
               <td style={{padding:'0 14px',fontSize:13}}>{c.courseId}</td>
               <td style={{padding:'0 14px',fontSize:13}}>{c.courseName}</td>
-              <td style={{padding:'0 8px',width:95}}>
-                <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:4}}>
-                  <button onClick={()=>onEdit(c)} className="mui-btn mui-text-primary" style={{color:AC,background:'none',border:'none',cursor:'pointer',fontSize:13,padding:'4px 6px'}}>編輯</button>
-                  {HAS_APPLICATIONS.has(c.courseId)
-                    ? <button disabled title="此課程有學生申請停修中，無法刪除" style={{background:'none',border:'none',cursor:'not-allowed',padding:4,display:'inline-flex',color:'rgba(0,0,0,0.2)',opacity:0.4}}><TrashIcon size={18}/></button>
-                    : <button onClick={()=>setCourses(p=>p.filter(x=>x.id!==c.id))} className="mui-btn mui-icon" style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'inline-flex',color:'rgba(0,0,0,0.5)'}}><TrashIcon size={18}/></button>}
+              <td style={{padding:'0 14px',fontSize:13,textAlign:'center',fontWeight:500}}>{(appCounts&&appCounts[c.id])||0}</td>
+              <td style={{padding:'0 14px',width:100}}>
+                <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8}}>
+                  <button onClick={()=>onEdit(c)} style={{background:'none',border:'none',cursor:'pointer',padding:5,display:'inline-flex',alignItems:'center',color:'rgba(0,0,0,0.54)',borderRadius:'50%'}}><EditIcon size={18}/></button>
+                  <MuiSwitch checked={true}/>
                 </div>
               </td>
             </tr>
@@ -979,13 +1005,15 @@ function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBa
             <td style={{padding:'0 8px',fontSize:13}}>{sec.op}</td>
             <td style={{padding:'0 8px',fontSize:13,whiteSpace:'nowrap'}}>{sec.ot}</td>
             <td style={{padding:'0 8px',fontSize:13,paddingRight:16}}>{getCount(sec.id)}</td>
-            <td style={{padding:'0 8px',width:100,whiteSpace:'nowrap',textAlign:'right'}}>
+            <td style={{padding:'0 8px',width:110,whiteSpace:'nowrap'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:16}}>
               <button onClick={()=>onEditSec(sec)} className="mui-btn mui-icon" style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'inline-flex',color:'rgba(0,0,0,0.5)'}}><EditIcon size={18}/></button>
               <Tog on={sec.vis} onChange={()=>{
                 setSel(p => [...new Set([...p, sec.id])]);
                 if(sec.vis){ onBatchClose([sec]); }
                 else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:true}:s)); showToast('已成功開啟班別停修功能'); }
               }}/>
+              </div>
             </td>
           </tr>
         ))}</tbody>
@@ -1068,12 +1096,12 @@ function NoticeContent() {
 function StudentView({ application, onSubmit, courseSettings }) {
   const [reason, setReason] = useState('');
   const [confirmed, setConfirmed] = useState(false);
-  const [noticeExpanded, setNoticeExpanded] = useState(false);
 
   const hasSubmitted = application.status !== '未申請';
   const isDisabled = !reason.trim() || !confirmed;
-  const cs = courseSettings || { st:'2026/05/04 00:00', et:'2026/05/11 23:59', ad:'2026/05/13 23:59', notes:'' };
-  const isAppExpired = !hasSubmitted && !!cs.et && (new Date(cs.et.replace(/\//g, '-').replace(' ', 'T')) < new Date());
+  const cs = courseSettings || { st:'2026/07/01 00:00', et:'2026/07/25 23:59', ad:'2026/08/08 23:59', notes:'' };
+  const sectionEnabled = cs.vis !== false;
+  const isAppExpired = !hasSubmitted && !sectionEnabled ? false : (!hasSubmitted && !!cs.et && (new Date(cs.et.replace(/\//g, '-').replace(' ', 'T')) < new Date()));
 
   const noticeContent = cs.notes
     ? <div className="ql-editor" style={{padding:0,fontSize:16,color:'#333',lineHeight:1.5,minHeight:'auto'}} dangerouslySetInnerHTML={{__html: cs.notes}} />
@@ -1081,96 +1109,67 @@ function StudentView({ application, onSubmit, courseSettings }) {
 
   return (
     <div style={{ padding:'24px 24px 64px' }}>
-      {/* Page title */}
-      <h1 style={{ fontSize:32, fontWeight:400, color:'#333', letterSpacing:'-1.5px', marginBottom:24 }}>停修申請</h1>
 
-      <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      {/* ── Title row: h1 + status chip ── */}
+      <div style={{ display:'flex', alignItems:'center', gap:24, marginBottom:24 }}>
+        <h1 style={{ fontSize:32, fontWeight:400, color:'#333', letterSpacing:'-1.5px', margin:0 }}>停修申請</h1>
+        <StatusChip status={application.status} />
+      </div>
 
-        {/* Upper block: course info + notice */}
+      {/* ── Main column (gap 16px between stack and action) ── */}
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+
+        {/* Input block — gap 40px between sections */}
         <div style={{ display:'flex', flexDirection:'column', gap:40 }}>
 
-          {/* Course info */}
+          {/* Info: course name + time table + student info + textarea */}
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <p style={{ fontSize:16, color:'#333', lineHeight:1.75, margin:0 }}>
-              課程名稱：深度學習 Deep Learning<br/>班別：國立成功大學
-            </p>
+
+            {/* Course name */}
+            <div style={{ display:'flex', flexDirection:'column' }}>
+              <p style={{ fontSize:16, fontWeight:400, color:'#333', lineHeight:1.75, margin:0 }}>課程名稱：深度學習 Deep Learning</p>
+              <p style={{ fontSize:16, fontWeight:400, color:'#333', lineHeight:1.75, margin:0 }}>班別：國立成功大學</p>
+            </div>
+
+            {/* 3-column time table */}
             <div style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, display:'flex', width:'100%' }}>
-              {[['申請開始時間', cs.st],['申請截止時間', cs.et],['教師審核期限', cs.ad]].map(([l,v],i,a) => (
+              {[['申請開始時間', sectionEnabled?cs.st:'-'],['申請截止時間', sectionEnabled?cs.et:'-'],['教師審核期限', sectionEnabled?cs.ad:'-']].map(([l,v],i,a) => (
                 <div key={l} style={{ flex:1, display:'flex', flexDirection:'column', borderRight:i<a.length-1?'1px solid rgba(0,0,0,0.12)':'none' }}>
                   <div style={{ fontSize:12, color:'#333', padding:'6px 16px', borderBottom:'1px solid rgba(0,0,0,0.12)', letterSpacing:'0.4px' }}>{l}</div>
                   <div style={{ fontSize:12, color:'#333', padding:'6px 16px', letterSpacing:'0.4px' }}>{v}</div>
                 </div>
               ))}
             </div>
-          </div>
 
-          {/* Notice section */}
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <p style={{ fontSize:16, fontWeight:700, color:'#333', margin:0 }}>申請停修注意事項</p>
-            <div style={{ position:'relative' }}>
-              <div style={{
-                border:'1px solid #E0E0E0', borderRadius:4, padding:16, background:'white',
-                maxHeight: noticeExpanded ? 2000 : 200,
-                overflow:'hidden',
-                transition:'max-height 0.4s cubic-bezier(0.4,0,0.2,1)'
-              }}>
-                {noticeContent}
+            {/* Instructor info — only after teacher review */}
+            {application.approvalTime && (
+              <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>授課教師：{application.approver || '林俊叡 (教師)'}</p>
+                <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>審核時間：{application.approvalTime}</p>
               </div>
-              {!noticeExpanded && (
-                <div style={{
-                  position:'absolute', bottom:0, left:0, right:0, height:52,
-                  background:'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 53%)',
-                  pointerEvents:'none', borderRadius:'0 0 4px 4px'
-                }} />
-              )}
-            </div>
-            <button
-              onClick={() => setNoticeExpanded(v => !v)}
-              style={{
-                alignSelf:'flex-start', display:'flex', alignItems:'center', gap:4,
-                background:'none', border:'none', cursor:'pointer',
-                color:'#0099CC', fontSize:13, fontWeight:500,
-                padding:'4px 5px', fontFamily:'inherit', lineHeight:1.69,
-                letterSpacing:'0.046em'
-              }}
-            >
-              {noticeExpanded ? '收合' : '展開'}
-              <span style={{ display:'flex', transition:'transform 0.3s ease', transform: noticeExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                <ArrowDownIcon size={18} color="#0099CC" />
-              </span>
-            </button>
-          </div>
+            )}
 
-        </div>{/* end upper block */}
-
-        {/* Application form card */}
-        <div style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, display:'flex', flexDirection:'column' }}>
-          {/* Form header */}
-          <div style={{ display:'flex', alignItems:'center', padding:16, gap:24, borderBottom:'1px solid rgba(0,0,0,0.12)' }}>
-            <span style={{ fontSize:20, fontWeight:400, color:'#333' }}>停修申請單</span>
-            <StatusChip status={application.status} />
-          </div>
-
-          {/* Form body */}
-          <div style={{ padding:16, display:'flex', flexDirection:'column', gap:16, borderBottom:(hasSubmitted || isAppExpired) ? 'none' : '1px solid rgba(0,0,0,0.12)' }}>
-            <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-              <p style={{ fontSize:16, color:'#333', lineHeight:1.5, margin:0 }}>課程名稱：深度學習 Deep Learning</p>
-              <p style={{ fontSize:16, color:'#333', lineHeight:1.5, margin:0 }}>班別：國立成功大學</p>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-              <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>授課教師：彭文孝、陳永昇、謝秉均</p>
-              {application.approvalTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>審核時間：{application.approvalTime}</p>}
-            </div>
+            {/* Student info */}
             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
               <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>學生姓名：陳O佑</p>
               <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>登入ID：F34097391@mail.ncku.edu.tw</p>
-              <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>學號：F34097391</p>
+              <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>學號：成大_F34097391</p>
+              {application.applyTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>申請時間：{application.applyTime}</p>}
             </div>
 
-            {hasSubmitted ? (
-              <div>
+            {/* Submission area */}
+            {!sectionEnabled ? (
+              <div style={{ display:'flex', alignItems:'flex-start', padding:'6px 16px', border:'1px solid #006699', borderRadius:4, background:'white' }}>
+                <div style={{ padding:'7px 12px 7px 0', display:'flex', flexShrink:0 }}><InfoIcon size={22} color="#006699" /></div>
+                <div style={{ display:'flex', flexDirection:'column', gap:4, padding:'8px 0' }}>
+                  <p style={{ fontSize:16, fontWeight:500, color:'#014361', lineHeight:1.5, margin:0 }}>停修功能未開放</p>
+                  <p style={{ fontSize:14, fontWeight:400, color:'#014361', lineHeight:1.43, margin:0 }}>您無法透過 COOL 申請課程停修，請逕洽您的校務選課系統辦理。</p>
+                </div>
+              </div>
+            ) : hasSubmitted ? (
+              <div style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, boxShadow:'0 2px 4px rgba(0,0,0,0.08)' }}>
                 {(application.status==='同意'||application.status==='不同意'||application.status==='逾期審核') ? (
-                  <div style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, boxShadow:'0 2px 4px rgba(0,0,0,0.1)' }}>
+                  <>
                     <AccordionItem title="停修原因" noBorderTop><p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>{application.reason}</p></AccordionItem>
                     <AccordionItem title="審核評語">
                       <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
@@ -1178,44 +1177,62 @@ function StudentView({ application, onSubmit, courseSettings }) {
                         {application.approver && <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>- 審核人 {application.approver}</p>}
                       </div>
                     </AccordionItem>
-                  </div>
+                  </>
                 ) : (
-                  <div style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, boxShadow:'0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <AccordionItem title="停修原因" noBorderTop><p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>{application.reason}</p></AccordionItem>
-                  </div>
+                  <AccordionItem title="停修原因" noBorderTop><p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>{application.reason}</p></AccordionItem>
                 )}
               </div>
             ) : isAppExpired ? (
               <div style={{ display:'flex', alignItems:'flex-start', padding:'6px 16px', border:'1px solid #CC0000', borderRadius:4, background:'white' }}>
-                <div style={{ padding:'7px 12px 7px 0', display:'flex', flexShrink:0 }}>
-                  <ErrorIcon size={22} color="#CC0000" />
-                </div>
+                <div style={{ padding:'7px 12px 7px 0', display:'flex', flexShrink:0 }}><ErrorIcon size={22} color="#CC0000" /></div>
                 <div style={{ display:'flex', flexDirection:'column', gap:4, padding:'8px 0' }}>
                   <p style={{ fontSize:16, fontWeight:500, color:'#5F2120', lineHeight:1.5, margin:0 }}>已超過停修申請時間</p>
                   <p style={{ fontSize:14, color:'#5F2120', lineHeight:1.43, margin:0 }}>您已無法透過 COOL 申請此課程停修，請聯繫課程授課教師。</p>
                 </div>
               </div>
             ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 <MuiTextField multiline rows={4} label="停修原因" value={reason} onChange={e => e.target.value.length<=500 && setReason(e.target.value)} />
                 <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right', margin:0 }}>{reason.length} / 500</p>
               </div>
             )}
 
-            {!hasSubmitted && !isAppExpired && (
-              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
-                <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} style={{ accentColor:'#0099cc', width:16, height:16, flexShrink:0 }} />
-                <span style={{ fontSize:12, color:'#333' }}>我已詳讀停修規範並確認停修該課程<span style={{ color:'#D63333' }}>*</span></span>
-              </label>
-            )}
+          </div>{/* end Info */}
+
+          {/* Horizontal divider */}
+          <div style={{ height:1, background:'rgba(0,0,0,0.12)', margin:'0' }} />
+
+          {/* Notice section */}
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <p style={{ fontSize:16, fontWeight:700, color:'#333', margin:0, lineHeight:1.6 }}>申請停修注意事項</p>
+            <div style={{ border:'1px solid #E0E0E0', borderRadius:4, padding:16, background:'white' }}>
+              {noticeContent}
+            </div>
           </div>
 
-          {!hasSubmitted && !isAppExpired && (
-            <div style={{ padding:8, display:'flex', justifyContent:'flex-end' }}>
-              <button disabled={isDisabled} onClick={() => !isDisabled && onSubmit(reason)} className="mui-btn mui-contained-primary" style={{ background: isDisabled?'rgba(0,0,0,0.12)':'#0099cc', color: isDisabled?'rgba(0,0,0,0.38)':'white', border:'none', borderRadius:4, padding:'4px 10px', fontSize:13, fontWeight:500, cursor: isDisabled?'default':'pointer' }}>提交申請</button>
-            </div>
+          {/* Checkbox */}
+          {!hasSubmitted && !isAppExpired && sectionEnabled && (
+            <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
+              <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} style={{ accentColor:'#0099cc', width:16, height:16, flexShrink:0 }} />
+              <span style={{ fontSize:12, color:'#333' }}>我已詳讀停修規範並確認停修該課程<span style={{ color:'#D63333' }}>*</span></span>
+            </label>
           )}
-        </div>
+
+        </div>{/* end Input block */}
+
+        {/* Action: submit button, right-aligned */}
+        {!hasSubmitted && !isAppExpired && sectionEnabled && (
+          <div style={{ display:'flex', justifyContent:'flex-end' }}>
+            <button
+              disabled={isDisabled}
+              onClick={() => !isDisabled && onSubmit(reason)}
+              className="mui-btn mui-contained-primary"
+              style={{ background: isDisabled?'rgba(0,0,0,0.12)':'#0099cc', color: isDisabled?'rgba(0,0,0,0.38)':'white', border:'none', borderRadius:4, padding:'8px 22px', fontSize:17, fontWeight:500, cursor: isDisabled?'default':'pointer', letterSpacing:'0.027em' }}
+            >
+              提交申請
+            </button>
+          </div>
+        )}
 
       </div>
     </div>
@@ -1275,7 +1292,7 @@ function App() {
   // Look up admin section settings for a given school (from 深度學習 course, id '1')
   const getSecForSchool = (school) => {
     const secs = adminCS['1'] || [];
-    return secs.find(s => s.name === school) || { st:'2026/05/04 00:00', et:'2026/06/30 23:59', ad:'2026/07/13 23:59', notes:'' };
+    return secs.find(s => s.name === school) || { st:'2026/07/01 00:00', et:'2026/07/25 23:59', ad:'2026/08/08 23:59', notes:'' };
   };
 
   // Derive effective status: if admin deadline for student's school has passed, 待審核 → 逾期審核
@@ -1293,7 +1310,7 @@ function App() {
 
   const [studentToast, setStudentToast] = useState(false);
   const handleStudentSubmit = (reason) => {
-    setStudentApp({ status:'待審核', reason });
+    setStudentApp({ status:'待審核', reason, applyTime:'2026/05/05 08:35' });
     const ns = { id:students.length+1, name:'陳O佑', school:'國立成功大學', studentId:'成大_F34097391', loginId:'F34097391@mail.ncku.edu.tw', applyTime:'2026/05/05 08:35', deadline:'2026/05/13 23:59', reason, status:'待審核', lastModified:new Date('2026/05/05 08:35').getTime() };
     setStudents(p => [ns, ...p]);
     setStudentToast(true);
@@ -1323,7 +1340,7 @@ function App() {
         return d;
       });
 
-  const pendingCount = effectiveStudents.filter(s => s.status==='待審核').length;
+  const pendingCount = effectiveStudents.filter(s => s.status==='待審核' || s.status==='逾期審核').length;
   const hasSelections = selected.length > 0;
   const isSelected = id => selected.includes(id);
   const selectableRows = filtered.filter(s => s.status!=='逾期審核');
@@ -1392,6 +1409,7 @@ function App() {
     setStudents(p => p.map(s => s.id===currentStudent.id ? { ...s, status:dlgStatus, approvalTime:isChen?'2026/05/07 12:30':t, approver:appr, comment:dlgComment, lastModified:ts } : s));
     if (isChen) setStudentApp({ status:dlgStatus, reason:currentStudent.reason, approvalTime:'2026/05/07 12:30', approver:appr, comment:dlgComment });
     setFrozenOrder(filtered.map(s => s.id));
+    setStatusFilter('全部');
     closeReview();
     showSuccess(isReversal);
   };
@@ -1472,6 +1490,7 @@ function App() {
                   setCSearch={setAdminCSearch}
                   onEdit={c => { setAdminCurCourse(c); setAdminView('edit'); }}
                   onAdd={() => setAdminAddOpen(true)}
+                  appCounts={{'1': students.filter(s=>s.status!=='未申請').length,'2':32,'3':6,'4':105,'5':17}}
                 />
               )}
               {adminView==='edit' && adminCurCourse && (
@@ -1494,7 +1513,7 @@ function App() {
           ) : (
             <div style={{ padding:'24px 24px 64px' }}>
               <h1 style={{ fontSize:32, fontWeight:400, color:'#333', marginBottom:8, letterSpacing:'-1.5px' }}>停修申請名單</h1>
-              <p style={{ fontSize:12, color:'black', marginBottom:16 }}>您尚有 <span style={{ color:'#cc0000' }}>{pendingCount}</span> 筆停修申請尚未審核；如您超過審核期限未同意，視為「不同意學生停修」</p>
+              <p style={{ fontSize:12, color:'black', marginBottom:16 }}>您尚有 <span style={{ color:'#cc0000' }}>{pendingCount}</span> 筆停修申請尚未審核（含逾期審核）</p>
 
               {/* Filter row */}
               <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16, gap:12, flexWrap:'wrap' }}>
@@ -1601,9 +1620,9 @@ function App() {
                         {/* 審核結果 */}
                         <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)' }}>
                           {hasSelections ? (
-                            <StatusChip status={s.status==='同意'?'同意':s.status==='不同意'?'不同意':s.status} />
+                            <StatusChip status={s.status==='同意'?'同意':s.status==='不同意'?'不同意':s.status} label={s.status==='同意'?'同意':s.status==='不同意'?'不同意':s.status} />
                           ) : (
-                            <button onClick={() => openReview(s)} style={{ ...tableStatusSt[s.status], borderRadius:4, padding:'3px 10px', fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:4, whiteSpace:'nowrap' }}>
+                            <button onClick={() => openReview(s)} style={{ ...tableStatusSt[s.status], borderRadius:4, padding:'4px 10px', fontSize:15, fontWeight:500, letterSpacing:'0.046em', cursor:'pointer', display:'flex', alignItems:'center', gap:4, whiteSpace:'nowrap' }}>
                               {s.status==='同意'?'同意':s.status==='不同意'?'不同意':s.status}
                               {s.status!=='逾期審核' && <span style={{ opacity:0.8, display:'flex' }}><EditIcon size={14} /></span>}
                             </button>
