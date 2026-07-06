@@ -126,7 +126,7 @@ const tableStatusSt = {
   '不同意':  { background:'rgba(204,0,0,0.04)', color:'#CC0000', border:'1px solid rgba(204,0,0,0.5)' },
 };
 const chipSt = {
-  '待審核':  { background:'#0099CC', color:'#FFFFFF', border:'none' },
+  '待審核':  { background:'transparent', color:'#0099CC', border:'1px solid #0099CC' },
   '同意':    { background:'transparent', color:'#008A00', border:'1px solid #008A00' },
   '不同意':  { background:'transparent', color:'#CC0000', border:'1px solid #CC0000' },
   '逾期審核': { background:'transparent', color:'rgba(51,51,51,0.6)', border:'1px solid rgba(0,0,0,0.38)' },
@@ -205,34 +205,65 @@ function WarningIcon({ size = 22 }) {
 }
 
 /* ─── TruncatedReason ───────────────────────────────────────────────────── */
-// Uses CSS float trick: invisible spacer floats right for line 1 height,
-// pushing the button to float right at the start of line 2.
-// Text naturally wraps to fill line 2 up to the button — no JS measurement of char widths needed.
+// Root cause of timing bug: the single ref switches between the unconstrained
+// div and the truncated div when isOver changes, so a deferred re-measure hits
+// the truncated div and reads wrong scrollHeight.
+//
+// Fix: dedicated measurement div (height:0, always present) whose ref never
+// switches. Deferred setTimeout re-measures at the TRUE final column width
+// (table auto-layout can expand columns after the initial useEffect run).
 function TruncatedReason({ text, onReadMore }) {
-  const ref = useRef(null);
+  const measRef = useRef(null);
   const [isOver, setIsOver] = useState(false);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const lh = parseFloat(getComputedStyle(el).lineHeight) || 18;
-    setIsOver(el.scrollHeight > lh * 2 + 2);
+    const measure = () => {
+      const el = measRef.current;
+      if (!el) return;
+      const lh = parseFloat(getComputedStyle(el).lineHeight) || 18;
+      setIsOver(el.scrollHeight > lh * 2 + 2);
+    };
+    measure();                         // immediate (may use pre-layout width)
+    const t = setTimeout(measure, 0);  // deferred: fires after table layout settles
+
+    // Re-measure whenever the cell's own width changes (browser/window resize,
+    // sidebar collapse, table column reflow, etc.) so <查看更多> shows/hides
+    // dynamically instead of being locked in from the first render.
+    let ro;
+    if (typeof ResizeObserver !== 'undefined' && measRef.current) {
+      ro = new ResizeObserver(() => measure());
+      ro.observe(measRef.current);
+    }
+    window.addEventListener('resize', measure);
+
+    return () => {
+      clearTimeout(t);
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, [text]);
 
-  if (!isOver) {
-    return <div ref={ref} style={{ fontSize:12, color:'#333', lineHeight:'1.5em' }}>{text}</div>;
-  }
-
   return (
-    <div ref={ref} style={{ fontSize:12, color:'#333', lineHeight:'1.5em', overflow:'hidden', maxHeight:'3em' }}>
-      {/* Spacer: float right, 1 line tall, zero width — pushes button below to line 2 */}
-      <span style={{ float:'right', clear:'right', height:'1.5em', width:'1px', display:'block' }} />
-      {/* Button: floats right on line 2, text wraps to fill left of it */}
-      <span style={{ float:'right', clear:'right' }}>
-        {'... '}
-        <button onClick={onReadMore} style={{ background:'none', border:'none', cursor:'pointer', padding:0, fontSize:12, color:'rgba(0,0,0,0.38)', fontFamily:'inherit', whiteSpace:'nowrap' }}>&lt;查看更多&gt;</button>
-      </span>
-      {text}
+    <div>
+      {/* height:0 keeps it invisible; scrollHeight still = full content height.
+          wordBreak:'break-all' must match the visible divs below exactly, otherwise
+          the hidden measurement wraps differently than what's shown and isOver is wrong. */}
+      <div ref={measRef} aria-hidden="true"
+        style={{ fontSize:14, lineHeight:'1.43', height:0, overflow:'hidden', wordBreak:'break-all' }}
+      >{text}</div>
+
+      {isOver ? (
+        <div style={{ fontSize:14, color:'#333', lineHeight:'1.43', overflow:'hidden', maxHeight:'2.86em', wordBreak:'break-all' }}>
+          <span style={{ float:'right', clear:'right', height:'1.43em', width:'1px', display:'block' }} />
+          <span style={{ float:'right', clear:'right' }}>
+            {'... '}
+            <button onClick={onReadMore} style={{ background:'none', border:'none', cursor:'pointer', padding:0, fontSize:12, color:'#757575', fontFamily:'inherit', whiteSpace:'nowrap' }}>&lt;查看更多&gt;</button>
+          </span>
+          {text}
+        </div>
+      ) : (
+        <div style={{ fontSize:14, color:'#333', lineHeight:'1.43', wordBreak:'break-all' }}>{text}</div>
+      )}
     </div>
   );
 }
@@ -241,9 +272,9 @@ function TruncatedReason({ text, onReadMore }) {
 function DateTimeCell({ value }) {
   if (!value) return <span />;
   const sp = value.indexOf(' ');
-  if (sp === -1) return <span style={{ fontSize:12, color:'#333' }}>{value}</span>;
+  if (sp === -1) return <span style={{ fontSize:14, color:'#333', lineHeight:'1.43' }}>{value}</span>;
   return (
-    <span style={{ fontSize:12, color:'#333' }}>
+    <span style={{ fontSize:14, color:'#333', lineHeight:'1.43' }}>
       {value.slice(0, sp)}<br/>{value.slice(sp + 1)}
     </span>
   );
@@ -343,7 +374,7 @@ function MuiSelect({ label, value, onChange, options, width = 200 }) {
 }
 
 /* ─── MUI-style TextField ─────────────────────────────────────────────────── */
-function MuiTextField({ label, value, onChange, onKeyDown, type='text', error, helperText, disabled, multiline, rows, style:outerSt }) {
+function MuiTextField({ label, value, onChange, onKeyDown, type='text', error, helperText, disabled, multiline, rows, fillHeight, style:outerSt }) {
   const [focused, setFocused] = useState(false);
   const hasValue = value !== '' && value !== undefined && value !== null;
   const alwaysFloat = type === 'datetime-local';
@@ -361,7 +392,7 @@ function MuiTextField({ label, value, onChange, onKeyDown, type='text', error, h
     cursor: disabled ? 'not-allowed' : undefined,
   };
   return (
-    <div style={{ position:'relative', display:'inline-block', width:'100%', verticalAlign:'top', ...(outerSt||{}) }}>
+    <div style={{ position:'relative', display: fillHeight ? 'flex' : 'inline-block', flexDirection: fillHeight ? 'column' : undefined, width:'100%', verticalAlign:'top', ...(outerSt||{}) }}>
       <div style={{
         position:'relative', borderRadius:4,
         border: `1px solid ${borderColor}`,
@@ -369,6 +400,7 @@ function MuiTextField({ label, value, onChange, onKeyDown, type='text', error, h
         outline: focused ? `1px solid ${borderColor}` : 'none',
         outlineOffset: -1,
         transition: 'border-color 0.1s',
+        ...(fillHeight ? {display:'flex', flexDirection:'column', flex:1} : {}),
       }}>
         {label && <span style={{
           position:'absolute', left:10, top:0, zIndex:1,
@@ -391,7 +423,7 @@ function MuiTextField({ label, value, onChange, onKeyDown, type='text', error, h
             onBlur={() => setFocused(false)}
             disabled={disabled}
             rows={rows}
-            style={{ ...sharedStyle, padding:'14px 14px 8px', resize:'vertical' }}
+            style={{ ...sharedStyle, padding:'14px 14px 8px', resize: fillHeight ? 'none' : 'vertical', ...(fillHeight ? {flex:1} : {}) }}
           />
         ) : (
           <input
@@ -955,8 +987,7 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
 function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBatchClose, onUpdate, onBack, showToast }) {
   const [search, setSearch]     = useState('');
   const [sel,    setSel]        = useState([]);
-  const [acc1Open, setAcc1Open] = useState(true);
-  const [acc2Open, setAcc2Open] = useState(true);
+  const [switchSortDir, setSwitchSortDir] = useState(1); // 1 = 開啟在上（預設）, -1 = 關閉在上
   const sValidErr = search.length > 50 ? '字數上限為 50 字' : '';
   const hasSel    = sel.length > 0;
 
@@ -964,65 +995,23 @@ function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBa
   const COUNT_MAP = {'1':12,'2':0,'3':3,'4':5,'5':28,'6':0,'7':0};
   const getCount = id => COUNT_MAP[id] !== undefined ? COUNT_MAP[id] : 0;
 
-  const openSecs   = secs.filter(s =>  s.vis && (!search.trim()||s.name.includes(search)));
-  const closedSecs = secs.filter(s => !s.vis && (!search.trim()||s.name.includes(search)));
-  const openSel    = openSecs;
-  const allC1  = openSel.length > 0    && openSel.every(s => sel.includes(s.id));
-  const indet1 = !allC1 && openSel.some(s => sel.includes(s.id));
-  const allC2  = closedSecs.length > 0 && closedSecs.every(s => sel.includes(s.id));
-  const indet2 = !allC2 && closedSecs.some(s => sel.includes(s.id));
+  /* 單一列表：不分 accordion，依搜尋字串過濾，再依「停修開關」排序（穩定排序，同組內維持原順序） */
+  const filteredSecs = secs.filter(s => !search.trim() || s.name.includes(search));
+  const sortedSecs   = [...filteredSecs].sort((a, b) => switchSortDir === 1 ? (b.vis - a.vis) : (a.vis - b.vis));
 
-  const batchOpen = () => {
-    onUpdate(secs.map(s => sel.includes(s.id) ? {...s, vis:true} : s));
-    showToast('已成功開啟班別停修功能');
+  const allC  = filteredSecs.length > 0 && filteredSecs.every(s => sel.includes(s.id));
+  const indet = !allC && filteredSecs.some(s => sel.includes(s.id));
+  const toggleAll = c => {
+    const ids = filteredSecs.map(s => s.id);
+    setSel(p => c ? [...new Set([...p, ...ids])] : p.filter(x => !ids.includes(x)));
   };
 
-  const COLS = ['班別','申請開始時間','申請截止時間','教師審核期限','最後操作人','最後操作時間','申請數'];
-
-  const renderTable = (rows, checked, indet, onToggleAll) => (
-    <div style={{borderTop:'1px solid rgba(0,0,0,0.12)',overflowX:'auto'}}>
-      <table style={{width:'100%',borderCollapse:'collapse',minWidth:920}}>
-        <thead><tr style={{background:'#f5f5f5',height:48}}>
-          <th style={{width:44,padding:'0 8px',textAlign:'center'}}>
-            <TriCb checked={checked} indet={indet} onChange={ev=>onToggleAll(ev.target.checked)}/>
-          </th>
-          {COLS.map(h=>(
-            <th key={h} style={{textAlign:'left',padding:'0 8px',fontSize:13,fontWeight:500}}>
-              {h==='申請開始時間'?<span style={{display:'flex',alignItems:'center',gap:3}}>{h}<ArrowDownIcon size={16} color="rgba(0,0,0,0.5)"/></span>:h}
-            </th>
-          ))}
-          <th style={{width:100}}/>
-        </tr></thead>
-        <tbody>{rows.map(sec=>(
-          <tr key={sec.id} style={{height:50,borderTop:'1px solid rgba(0,0,0,0.06)',background:sel.includes(sec.id)?'rgba(0,153,204,0.08)':'white'}}>
-            <td style={{padding:'0 8px',textAlign:'center',width:44}}>
-              <input type="checkbox" checked={sel.includes(sec.id)} onChange={ev=>setSel(p=>ev.target.checked?[...p,sec.id]:p.filter(x=>x!==sec.id))} style={{accentColor:AC,width:17,height:17,cursor:'pointer'}}/>
-            </td>
-            <td style={{padding:'0 8px',fontSize:13}}>{sec.name}</td>
-            <td style={{padding:'0 8px',fontSize:13,whiteSpace:'nowrap'}}>{sec.st}</td>
-            <td style={{padding:'0 8px',fontSize:13,whiteSpace:'nowrap'}}>{sec.et}</td>
-            <td style={{padding:'0 8px',fontSize:13,whiteSpace:'nowrap'}}>{sec.ad}</td>
-            <td style={{padding:'0 8px',fontSize:13}}>{sec.op}</td>
-            <td style={{padding:'0 8px',fontSize:13,whiteSpace:'nowrap'}}>{sec.ot}</td>
-            <td style={{padding:'0 8px',fontSize:13,paddingRight:16}}>{getCount(sec.id)}</td>
-            <td style={{padding:'0 8px',width:110,whiteSpace:'nowrap'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:16}}>
-              <button onClick={()=>onEditSec(sec)} className="mui-btn mui-icon" style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'inline-flex',color:'rgba(0,0,0,0.5)'}}><EditIcon size={18}/></button>
-              <Tog on={sec.vis} onChange={()=>{
-                setSel(p => [...new Set([...p, sec.id])]);
-                if(sec.vis){
-                  if(getCount(sec.id)>0){ onBatchClose([sec]); }
-                  else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:false}:s)); showToast('已成功關閉班別停修功能'); }
-                } else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:true}:s)); showToast('已成功開啟班別停修功能'); }
-              }}/>
-              </div>
-            </td>
-          </tr>
-        ))}</tbody>
-      </table>
-      {rows.length===0&&<div style={{padding:'16px',fontSize:14,color:'rgba(0,0,0,0.6)',textAlign:'center'}}>找不到符合條件的班別</div>}
-    </div>
-  );
+  /* 欄位寬度依 Figma frame（node 516:29233）調整：班別/申請數/停修開關/編輯 為固定寬，
+     其餘日期時間類欄位為彈性（fill）欄位，不設寬度、平分剩餘空間 */
+  const COLS = [
+    ['班別', null], ['申請開始時間', null], ['申請截止時間', null], ['教師審核期限', null],
+    ['最後操作人', null], ['最後操作時間', null], ['申請數', 80],
+  ];
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
@@ -1039,40 +1028,61 @@ function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBa
         <MuiTextField label="搜尋班別" value={search} onChange={ev=>setSearch(ev.target.value)} error={!!sValidErr} helperText={sValidErr||''} style={{width:220}}/>
         <div style={{width:1,height:36,background:'rgba(0,0,0,0.12)',flexShrink:0}}/>
         <AdminBtn onClick={()=>onBatchSecs(secs.filter(s=>sel.includes(s.id)))} disabled={!hasSel} icon="Edit">批次編輯設定</AdminBtn>
-        <div style={{width:1,height:36,background:'rgba(0,0,0,0.12)',flexShrink:0}}/>
-        <AdminBtn onClick={batchOpen} disabled={!hasSel} variant="outline">批次開啟</AdminBtn>
-        <AdminBtn onClick={()=>{
-          const selected = secs.filter(s=>sel.includes(s.id));
-          const withApps = selected.filter(s=>getCount(s.id)>0);
-          const noApps   = selected.filter(s=>getCount(s.id)===0);
-          if(noApps.length>0) onUpdate(secs.map(s=>noApps.some(n=>n.id===s.id)?{...s,vis:false}:s));
-          if(withApps.length>0) onBatchClose(withApps);
-          else showToast('已成功關閉班別停修功能');
-        }} disabled={!hasSel} variant="outline">批次關閉</AdminBtn>
       </div>
 
-      {/* Accordion 1 — 開啟停修功能班別 */}
-      <div style={{border:'1px solid rgba(0,0,0,0.12)',borderRadius:4,overflow:'hidden'}}>
-        <div onClick={()=>setAcc1Open(v=>!v)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 16px',height:52,cursor:'pointer',userSelect:'none',background:'white'}}>
-          <span style={{fontSize:16,color:'#333'}}>開啟停修功能班別</span>
-          <span style={{fontSize:18,color:'rgba(0,0,0,0.54)',display:'inline-block',transform:acc1Open?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s'}}>▾</span>
-        </div>
-        {acc1Open && renderTable(openSecs, allC1, indet1, c=>{
-          const ids = openSecs.map(s=>s.id);
-          setSel(p => c ? [...new Set([...p,...ids])] : p.filter(x=>!ids.includes(x)));
-        })}
-      </div>
-
-      {/* Accordion 2 — 關閉停修功能班別 */}
-      <div style={{border:'1px solid rgba(0,0,0,0.12)',borderRadius:4,overflow:'hidden'}}>
-        <div onClick={()=>setAcc2Open(v=>!v)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 16px',height:52,cursor:'pointer',userSelect:'none',background:'white'}}>
-          <span style={{fontSize:16,color:'#333'}}>關閉停修功能班別</span>
-          <span style={{fontSize:18,color:'rgba(0,0,0,0.54)',display:'inline-block',transform:acc2Open?'rotate(180deg)':'rotate(0deg)',transition:'transform .2s'}}>▾</span>
-        </div>
-        {acc2Open && renderTable(closedSecs, allC2, indet2, c=>{
-          const ids = closedSecs.map(s=>s.id);
-          setSel(p => c ? [...new Set([...p,...ids])] : p.filter(x=>!ids.includes(x)));
-        })}
+      {/* 班別列表 — 單一列表，不分 accordion；預設開啟班別在上、關閉班別在下 */}
+      <div style={{border:'1px solid rgba(0,0,0,0.12)',borderRadius:4,overflow:'auto'}}>
+        <table style={{width:'100%',tableLayout:'fixed',borderCollapse:'collapse',minWidth:1020}}>
+          <thead><tr style={{background:'#f5f5f5',height:48}}>
+            <th style={{width:44,padding:'0 8px',textAlign:'center'}}>
+              <TriCb checked={allC} indet={indet} onChange={ev=>toggleAll(ev.target.checked)}/>
+            </th>
+            {COLS.map(([h, w])=>(
+              <th key={h} style={{width:w||undefined,textAlign:'left',padding:'0 8px',fontSize:13,fontWeight:500,whiteSpace:'nowrap'}}>{h}</th>
+            ))}
+            <th onClick={()=>setSwitchSortDir(d=>d*-1)} style={{width:120,textAlign:'left',padding:'0 16px',fontSize:13,fontWeight:500,cursor:'pointer',userSelect:'none'}}>
+              <span style={{display:'inline-flex',alignItems:'center',gap:4}}>
+                停修開關
+                <span style={{display:'inline-flex',transform:switchSortDir===1?'rotate(0deg)':'rotate(180deg)',transition:'transform .15s'}}>
+                  <ArrowDownIcon size={18} color="rgba(0,0,0,0.5)"/>
+                </span>
+              </span>
+            </th>
+            <th style={{width:50,textAlign:'left',padding:'0 8px',fontSize:13,fontWeight:500}}>編輯</th>
+          </tr></thead>
+          <tbody>{sortedSecs.map(sec=>(
+            <tr key={sec.id} style={{height:50,borderTop:'1px solid rgba(0,0,0,0.06)',background:sel.includes(sec.id)?'rgba(0,153,204,0.08)':'white'}}>
+              <td style={{padding:'0 8px',textAlign:'center',width:44}}>
+                <input type="checkbox" checked={sel.includes(sec.id)} onChange={ev=>setSel(p=>ev.target.checked?[...p,sec.id]:p.filter(x=>x!==sec.id))} style={{accentColor:AC,width:17,height:17,cursor:'pointer'}}/>
+              </td>
+              <td style={{padding:'0 8px',fontSize:14,lineHeight:'1.43',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sec.name}</td>
+              <td style={{padding:'0 8px',fontSize:14,lineHeight:'1.43',whiteSpace:'nowrap'}}>{sec.st}</td>
+              <td style={{padding:'0 8px',fontSize:14,lineHeight:'1.43',whiteSpace:'nowrap'}}>{sec.et}</td>
+              <td style={{padding:'0 8px',fontSize:14,lineHeight:'1.43',whiteSpace:'nowrap'}}>{sec.ad}</td>
+              <td style={{padding:'0 8px',fontSize:14,lineHeight:'1.43',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sec.op}</td>
+              <td style={{padding:'0 8px',fontSize:14,lineHeight:'1.43',whiteSpace:'nowrap'}}>{sec.ot}</td>
+              <td style={{padding:'0 8px',fontSize:14,lineHeight:'1.43'}}>{getCount(sec.id)}</td>
+              <td style={{padding:'8px',width:120}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <Tog on={sec.vis} onChange={()=>{
+                    setSel(p => [...new Set([...p, sec.id])]);
+                    if(sec.vis){
+                      if(getCount(sec.id)>0){ onBatchClose([sec]); }
+                      else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:false}:s)); showToast('已成功關閉班別停修功能'); }
+                    } else { onUpdate(secs.map(s=>s.id===sec.id?{...s,vis:true}:s)); showToast('已成功開啟班別停修功能'); }
+                  }}/>
+                  <span style={{fontSize:14,lineHeight:'1.43',color:'#333',whiteSpace:'nowrap'}}>{sec.vis?'開啟':'關閉'}</span>
+                </div>
+              </td>
+              <td style={{padding:'0 8px',width:50}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end'}}>
+                  <button onClick={()=>onEditSec(sec)} className="mui-btn mui-icon" style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'inline-flex',color:'rgba(0,0,0,0.5)'}}><EditIcon size={18}/></button>
+                </div>
+              </td>
+            </tr>
+          ))}</tbody>
+        </table>
+        {sortedSecs.length===0&&<div style={{padding:'16px',fontSize:14,color:'rgba(0,0,0,0.6)',textAlign:'center'}}>找不到符合條件的班別</div>}
       </div>
     </div>
   );
@@ -1391,12 +1401,9 @@ function App() {
   };
 
   const batchClick = ns => {
-    const hasApproved = effectiveStudents.some(s => selected.includes(s.id) && (s.status==='同意'||s.status==='不同意'));
-    if (hasApproved) {
-      setPendingStatus(ns);
-      setBatchComment(ns==='同意' ? '批次審核同意停修' : '批次審核不同意停修');
-      setConfirmOpen(true);
-    } else execBatch(ns);
+    setPendingStatus(ns);
+    setBatchComment(ns === '同意' ? '同意停修' : '不同意停修');
+    setConfirmOpen(true);
   };
 
   const openReview = s => {
@@ -1525,8 +1532,8 @@ function App() {
               <p style={{ fontSize:12, color:'black', marginBottom:16 }}>您尚有 <span style={{ color:'#cc0000' }}>{pendingCount}</span> 筆停修申請尚未審核（含逾期審核）</p>
 
               {/* Filter row */}
-              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16, gap:12, flexWrap:'wrap' }}>
-                <div style={{ display:'flex', gap:16, flexWrap:'wrap', alignItems:'flex-start' }}>
+              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:12, gap:12 }}>
+                <div style={{ display:'flex', gap:24, alignItems:'flex-start' }}>
                   <MuiTextField
                     label="學生姓名"
                     value={searchName}
@@ -1545,9 +1552,10 @@ function App() {
                     }}
                     error={!!searchErrorType}
                     helperText={searchErrorType==='invalidChars' ? '請輸入中文或英文姓名' : searchErrorType==='tooLong' ? '字數上限為 50 字' : ''}
-                    style={{ width:200 }}
+                    style={{ width:220 }}
                   />
                   <MuiSelect label="班別" value={classFilter} onChange={v => setClassFilter(v)} options={classOptions} width={220} />
+                  <MuiSelect label="審核結果" value={statusFilter} onChange={v => setStatusFilter(v)} options={statusOptions} width={220} />
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                   {frozenOrder && (
@@ -1559,50 +1567,39 @@ function App() {
                 </div>
               </div>
 
-              {/* Batch row */}
-              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12, flexWrap:'wrap' }}>
-                <MuiSelect label="審核結果" value={statusFilter} onChange={v => setStatusFilter(v)} options={statusOptions} width={160} />
-                <div style={{ width:1, height:40, background:'rgba(0,0,0,0.12)' }} />
+              {/* Action bar */}
+              <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:12 }}>
                 <span style={{ fontSize:14, fontWeight:500, color:'#333' }}>已選取 {selected.length} 名學生</span>
-                <button disabled={!hasSelections} onClick={() => batchClick('同意')} className="mui-btn mui-outlined-success" style={{ color:hasSelections?'#008a00':'rgba(0,0,0,0.38)', border:`1px solid ${hasSelections?'rgba(0,138,0,0.5)':'rgba(0,0,0,0.12)'}`, background:'transparent', borderRadius:4, padding:'4px 12px', fontSize:13, fontWeight:500, cursor:hasSelections?'pointer':'default', display:'flex', alignItems:'center', gap:4 }}>
+                <button disabled={!hasSelections} onClick={() => batchClick('同意')} className="mui-btn mui-outlined-success" style={{ color:hasSelections?'#008a00':'rgba(0,0,0,0.38)', border:`1px solid ${hasSelections?'rgba(0,138,0,0.5)':'rgba(0,0,0,0.12)'}`, background:'transparent', borderRadius:4, padding:'4px 10px', fontSize:13, fontWeight:500, cursor:hasSelections?'pointer':'default' }}>
                   同意停修
-                  <EditIcon size={14} />
                 </button>
-                <button disabled={!hasSelections} onClick={() => batchClick('不同意')} className="mui-btn mui-outlined-error" style={{ color:hasSelections?'#cc0000':'rgba(0,0,0,0.38)', border:`1px solid ${hasSelections?'rgba(204,0,0,0.5)':'rgba(0,0,0,0.12)'}`, background:'transparent', borderRadius:4, padding:'4px 12px', fontSize:13, fontWeight:500, cursor:hasSelections?'pointer':'default', display:'flex', alignItems:'center', gap:4 }}>
+                <button disabled={!hasSelections} onClick={() => batchClick('不同意')} className="mui-btn mui-outlined-error" style={{ color:hasSelections?'#cc0000':'rgba(0,0,0,0.38)', border:`1px solid ${hasSelections?'rgba(204,0,0,0.5)':'rgba(0,0,0,0.12)'}`, background:'transparent', borderRadius:4, padding:'4px 10px', fontSize:13, fontWeight:500, cursor:hasSelections?'pointer':'default' }}>
                   不同意停修
-                  <EditIcon size={14} />
                 </button>
               </div>
 
               {/* Table — column order: 申請學生 班別 學號 申請時間 停修原因 審核結果 審核期限 核准時間 核准人 */}
               <div style={{ border:'1px solid rgba(0,0,0,0.12)', overflow:'auto', maxHeight:'calc(100vh - 300px)' }}>
-                <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed', minWidth:1000 }}>
-                  <colgroup>
-                    <col style={{ width:44 }} />
-                    <col style={{ width:110 }} />
-                    <col style={{ width:100 }} />
-                    <col style={{ width:140 }} />
-                    <col style={{ width:100 }} />
-                    <col style={{ width:160 }} />
-                    <col style={{ width:130 }} />
-                    <col style={{ width:100 }} />
-                    <col style={{ width:100 }} />
-                    <col style={{ width:110 }} />
-                  </colgroup>
+                <table style={{ width:'100%', tableLayout:'fixed', borderCollapse:'collapse', minWidth:1074 }}>
+
                   <thead>
                     <tr>
-                      <th style={{ padding:'10px 8px', textAlign:'center', borderBottom:'1px solid rgba(0,0,0,0.12)', background:'#f5f5f5', position:'sticky', top:0, zIndex:2 }}>
+                      <th style={{ padding:'8px', width:58, textAlign:'center', borderBottom:'1px solid rgba(0,0,0,0.12)', background:'#f5f5f5', position:'sticky', top:0, zIndex:2 }}>
                         <input type="checkbox" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected; }} onChange={handleSelectAll} style={{ accentColor:'#0099cc' }} />
                       </th>
-                      {['申請學生','班別','學號','申請時間','停修原因','審核結果','審核期限','審核時間','審核人'].map(h => (
-                        <th key={h} style={{ padding:'10px 8px', textAlign:'left', fontSize:14, fontWeight:500, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.12)', background:'#f5f5f5', position:'sticky', top:0, zIndex:2 }}>{h}</th>
+                      {[
+                        ['學生姓名', 100],['班別', 110],['學號', 128],['申請時間', 96],
+                        ['停修原因', 160],['審核結果', 100],['審核期限', 96],['審核時間', 96],
+                        ['審核人', 80],['審核', 50],
+                      ].map(([h, w]) => (
+                        <th key={h} style={{ padding:'8px', textAlign: h==='審核'?'center':'left', fontSize:14, fontWeight:500, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.12)', background:'#f5f5f5', position:'sticky', top:0, zIndex:2, ...(h==='停修原因' ? { minWidth:w } : { width:w }), whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={10} style={{ padding:'32px 8px', textAlign:'center', fontSize:14, color:'#333' }}>
+                        <td colSpan={11} style={{ padding:'32px 8px', textAlign:'center', fontSize:14, color:'#333' }}>
                           {statusFilter==='待審核' && students.filter(s => s.status==='待審核').length===0
                             ? '目前沒有需審核的學生'
                             : '找不到符合條件的學生'
@@ -1610,39 +1607,38 @@ function App() {
                         </td>
                       </tr>
                     ) : filtered.map(s => (
-                      <tr key={s.id} style={{ background: isSelected(s.id) ? 'rgba(0,153,204,0.08)' : 'transparent' }}>
+                      <tr key={s.id} style={{ height:72, background: isSelected(s.id) ? 'rgba(0,153,204,0.08)' : 'transparent' }}>
                         <td style={{ padding:'8px', textAlign:'center', borderBottom:'1px solid rgba(0,0,0,0.06)' }}>
                           {s.status!=='逾期審核' && <input type="checkbox" checked={isSelected(s.id)} onChange={() => toggleSelect(s.id)} style={{ accentColor:'#0099cc' }} />}
                         </td>
                         {/* 申請學生 */}
-                        <td style={{ padding:'8px', fontSize:12, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.06)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.name}</td>
-                        {/* 班別 */}
-                        <td style={{ padding:'8px', fontSize:12, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.06)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={s.school}>{s.school}</td>
-                        {/* 學號 */}
-                        <td style={{ padding:'8px', fontSize:12, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.06)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.studentId}</td>
+                        <td style={{ padding:'8px', fontSize:14, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.06)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.name}</td>
+                        {/* 班別 — 字元過長時換行顯示，不做省略號隱藏 */}
+                        <td style={{ padding:'8px', fontSize:14, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.06)', whiteSpace:'normal', wordBreak:'break-word', overflowWrap:'break-word' }}>{s.school}</td>
+                        {/* 學號 — 字元過長時換行顯示，不做省略號隱藏 */}
+                        <td style={{ padding:'8px', fontSize:14, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.06)', whiteSpace:'normal', wordBreak:'break-word', overflowWrap:'break-word' }}>{s.studentId}</td>
                         {/* 申請時間 */}
-                        <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', verticalAlign:'top' }}><DateTimeCell value={s.applyTime} /></td>
+                        <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', verticalAlign:'middle' }}><DateTimeCell value={s.applyTime} /></td>
                         {/* 停修原因 */}
                         <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', overflow:'hidden' }}>
                           <TruncatedReason text={s.reason} onReadMore={() => openReview(s)} />
                         </td>
                         {/* 審核結果 */}
                         <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)' }}>
-                          {hasSelections ? (
-                            <StatusChip status={s.status==='同意'?'同意':s.status==='不同意'?'不同意':s.status} label={s.status==='同意'?'同意':s.status==='不同意'?'不同意':s.status} />
-                          ) : (
-                            <button onClick={() => openReview(s)} style={{ ...tableStatusSt[s.status], borderRadius:4, padding:'4px 10px', fontSize:15, fontWeight:500, letterSpacing:'0.046em', cursor:'pointer', display:'flex', alignItems:'center', gap:4, whiteSpace:'nowrap' }}>
-                              {s.status==='同意'?'同意':s.status==='不同意'?'不同意':s.status}
-                              {s.status!=='逾期審核' && <span style={{ opacity:0.8, display:'flex' }}><EditIcon size={14} /></span>}
-                            </button>
-                          )}
+                          <StatusChip status={s.status==='同意'?'同意':s.status==='不同意'?'不同意':s.status} label={s.status==='同意'?'同意':s.status==='不同意'?'不同意':s.status} />
                         </td>
                         {/* 審核期限：原本就是逾期審核的學生顯示歷史截止日，其他顯示 admin 當前設定 */}
-                        <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', verticalAlign:'top' }}><DateTimeCell value={s._orig === '逾期審核' ? s.deadline : getSecForSchool(s.school).ad} /></td>
+                        <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', verticalAlign:'middle' }}><DateTimeCell value={s._orig === '逾期審核' ? s.deadline : getSecForSchool(s.school).ad} /></td>
                         {/* 審核時間 */}
-                        <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', verticalAlign:'top' }}><DateTimeCell value={s.approvalTime || ''} /></td>
-                        {/* 審核人 */}
-                        <td style={{ padding:'8px', fontSize:12, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.06)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.approver || ''}</td>
+                        <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', verticalAlign:'middle' }}><DateTimeCell value={s.approvalTime || ''} /></td>
+                        {/* 審核人 — 字元過長時換行顯示，不做省略號隱藏 */}
+                        <td style={{ padding:'8px', fontSize:14, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.06)', whiteSpace:'normal', wordBreak:'break-word', overflowWrap:'break-word' }}>{s.approver || ''}</td>
+                        {/* 審核 — 鉛筆 IconButton（逾期審核也顯示） */}
+                        <td style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)', textAlign:'center', verticalAlign:'middle' }}>
+                          <button onClick={() => openReview(s)} style={{ background:'none', border:'none', cursor:'pointer', padding:5, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:'50%', color:'rgba(0,0,0,0.54)' }}>
+                            <EditIcon size={20} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1657,18 +1653,25 @@ function App() {
       {/* ── Confirm override dialog ── */}
       {confirmOpen && (
         <div onClick={() => setConfirmOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'white', borderRadius:8, width:600, height:570, boxShadow:'0 8px 32px rgba(0,0,0,0.2)', display:'flex', flexDirection:'column' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'white', borderRadius:8, width:600, height:570, boxShadow:'0 8px 32px rgba(0,0,0,0.2)', display:'flex', flexDirection:'column', overflow:'hidden' }}>
             {/* Title */}
             <div style={{ padding:'16px 24px', borderBottom:'1px solid rgba(0,0,0,0.12)', flexShrink:0 }}>
-              <h2 style={{ fontSize:20, fontWeight:500, color:'#333', margin:0 }}>更新審核結果</h2>
+              <h2 style={{ fontSize:20, fontWeight:500, color:'#333', margin:0 }}>
+                {pendingStatus === '同意' ? '批次同意停修' : '批次不同意停修'}
+              </h2>
             </div>
             {/* Content */}
-            <div style={{ flex:1, padding:'16px 24px', display:'flex', flexDirection:'column', gap:24, overflowY:'auto' }}>
-              <p style={{ fontSize:16, color:'#333', lineHeight:1.5, margin:0 }}>您選取的學生中已有審核結果。繼續操作將覆蓋並更新這些學生的狀態，以及清除評語。確定要繼續嗎？</p>
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                <p style={{ fontSize:14, fontWeight:500, color:'#333', margin:0 }}>新的審核評語</p>
-                <MuiTextField multiline rows={4} label="審核評語 (選填)" value={batchComment} onChange={e => e.target.value.length<=500 && setBatchComment(e.target.value)} />
-                <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right', margin:0 }}>{batchComment.length} / 500</p>
+            <div style={{ flex:1, padding:'16px 24px', display:'flex', flexDirection:'column', gap:16, overflowY:'auto' }}>
+              <p style={{ fontSize:16, color:'#333', lineHeight:1.6, margin:0 }}>
+                您即將對所選取的學生批次審核「{pendingStatus === '同意' ? '同意停修' : '不同意停修'}」。
+              </p>
+              <p style={{ fontSize:16, color:'#333', lineHeight:1.6, margin:0 }}>
+                尚無審核結果的學生，將新增「{pendingStatus === '同意' ? '同意' : '不同意'}」審核狀態及下方填寫的評語；已有審核結果的學生，現有狀態與評語將被覆蓋。
+              </p>
+              <p style={{ fontSize:16, color:'#333', lineHeight:1.6, margin:0 }}>確定要繼續嗎？</p>
+              <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
+                <MuiTextField multiline fillHeight label="新的審核評語 (選填)" value={batchComment} onChange={e => e.target.value.length<=500 && setBatchComment(e.target.value)} style={{ flex:1 }} />
+                <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right', margin:0, flexShrink:0 }}>{batchComment.length} / 500</p>
               </div>
             </div>
             {/* Actions */}
