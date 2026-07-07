@@ -177,13 +177,8 @@ function ErrorIcon({ size=18, color='currentColor' }) {
 function CheckCircleIcon({ size=18, color='currentColor' }) {
   return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color} style={{display:'block',flexShrink:0}}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>;
 }
-function MuiSwitch({ checked }) {
-  return (
-    <span style={{display:'inline-block',width:34,height:14,borderRadius:7,background:checked?'rgba(0,153,204,0.5)':'rgba(0,0,0,0.38)',position:'relative',verticalAlign:'middle',flexShrink:0,transition:'background 0.2s'}}>
-      <span style={{position:'absolute',top:-3,left:checked?16:2,width:20,height:20,borderRadius:'50%',background:checked?'#0099CC':'#FAFAFA',boxShadow:'0 1px 3px rgba(0,0,0,0.4)',transition:'left 0.15s'}}/>
-    </span>
-  );
-}
+/* MuiSwitch removed — was a dead, non-interactive display-only switch (no onChange).
+   AdminListView now reuses the interactive Tog component instead. */
 function EditIcon({ size = 14 }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ display:'block', flexShrink:0 }}>
@@ -937,7 +932,7 @@ function BatchDlg({ secs, onClose, onSave }) {
 }
 
 /* ─── AdminListView ──────────────────────────────────────────────────────── */
-function AdminListView({ courses, setCourses, semester, setSemester, cSearch, setCSearch, onEdit, onAdd, appCounts }) {
+function AdminListView({ courses, setCourses, semester, setSemester, cSearch, setCSearch, onEdit, onAdd, onToggle, appCounts }) {
   const cErr = cSearch.length > 50 ? '字數上限為 50 字' : '';
   const filt = courses.filter(c => c.semester===semester && (!cSearch.trim()||c.courseName.toLowerCase().includes(cSearch.toLowerCase())));
   return (
@@ -971,7 +966,7 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
               <td style={{padding:'0 14px',width:100}}>
                 <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8}}>
                   <button onClick={()=>onEdit(c)} style={{background:'none',border:'none',cursor:'pointer',padding:5,display:'inline-flex',alignItems:'center',color:'rgba(0,0,0,0.54)',borderRadius:'50%'}}><EditIcon size={18}/></button>
-                  <MuiSwitch checked={true}/>
+                  <Tog on={c.vis !== false} onChange={()=>onToggle(c)}/>
                 </div>
               </td>
             </tr>
@@ -1144,10 +1139,11 @@ function StudentView({ application, onSubmit, courseSettings }) {
           {/* Info: course name + time table + student info + textarea */}
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
-            {/* Course name */}
+            {/* Course name — 授課教師 一直顯示在班別下方，不隨審核狀態變動 */}
             <div style={{ display:'flex', flexDirection:'column' }}>
               <p style={{ fontSize:16, fontWeight:400, color:'#333', lineHeight:1.75, margin:0 }}>課程名稱：深度學習 Deep Learning</p>
               <p style={{ fontSize:16, fontWeight:400, color:'#333', lineHeight:1.75, margin:0 }}>班別：國立成功大學</p>
+              <p style={{ fontSize:16, fontWeight:400, color:'#333', lineHeight:1.75, margin:0 }}>授課教師：彭文孝、陳永昇、謝秉均</p>
             </div>
 
             {/* 3-column time table */}
@@ -1160,20 +1156,11 @@ function StudentView({ application, onSubmit, courseSettings }) {
               ))}
             </div>
 
-            {/* Instructor info — only after teacher review */}
-            {application.approvalTime && (
-              <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>授課教師：{application.approver || '林俊叡 (教師)'}</p>
-                <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>審核時間：{application.approvalTime}</p>
-              </div>
-            )}
-
-            {/* Student info */}
+            {/* Student info — 申請時間 moved into 停修原因 accordion below */}
             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
               <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>學生姓名：陳O佑</p>
               <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>登入ID：F34097391@mail.ncku.edu.tw</p>
               <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>學號：成大_F34097391</p>
-              {application.applyTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>申請時間：{application.applyTime}</p>}
             </div>
 
             {/* Submission area */}
@@ -1189,16 +1176,27 @@ function StudentView({ application, onSubmit, courseSettings }) {
               <div style={{ border:'1px solid rgba(0,0,0,0.12)', borderRadius:4, boxShadow:'0 2px 4px rgba(0,0,0,0.08)' }}>
                 {(application.status==='同意'||application.status==='不同意'||application.status==='逾期審核') ? (
                   <>
-                    <AccordionItem title="停修原因" noBorderTop><p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>{application.reason}</p></AccordionItem>
+                    <AccordionItem title="停修原因" noBorderTop>
+                      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                        <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>{application.reason}</p>
+                        {application.applyTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>- 申請時間：{application.applyTime}</p>}
+                      </div>
+                    </AccordionItem>
                     <AccordionItem title="審核評語">
                       <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
                         <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>{application.comment || '- 無'}</p>
                         {application.approver && <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>- 審核人 {application.approver}</p>}
+                        {application.approvalTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>- 審核時間：{application.approvalTime}</p>}
                       </div>
                     </AccordionItem>
                   </>
                 ) : (
-                  <AccordionItem title="停修原因" noBorderTop><p style={{ fontSize:12, color:'#333', lineHeight:1.66 }}>{application.reason}</p></AccordionItem>
+                  <AccordionItem title="停修原因" noBorderTop>
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                      <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>{application.reason}</p>
+                      {application.applyTime && <p style={{ fontSize:12, color:'#333', lineHeight:1.66, margin:0 }}>- 申請時間：{application.applyTime}</p>}
+                    </div>
+                  </AccordionItem>
                 )}
               </div>
             ) : isAppExpired ? (
@@ -1293,11 +1291,25 @@ function App() {
   const [adminSecDlg, setAdminSecDlg] = useState(null);
   const [adminBatchSecs, setAdminBatchSecs] = useState(null);
   const [adminBatchCloseConf, setAdminBatchCloseConf] = useState(null);
+  const [adminCourseCloseConf, setAdminCourseCloseConf] = useState(null);
   const [adminToast, setAdminToast] = useState(null);
 
   const adminShowToast = (msg) => { setAdminToast(msg); setTimeout(() => setAdminToast(null), 4000); };
   const adminGetSecs = (courseId) => adminCS[courseId] || mkSecs();
   const adminSaveSecs = (courseId, newSecs) => setAdminCS(prev => ({ ...prev, [courseId]: newSecs }));
+
+  // Course-level switch on the admin homepage list — same appCounts used for the 申請數 column
+  const adminAppCounts = {'1': students.filter(s=>s.status!=='未申請').length,'2':32,'3':6,'4':105,'5':17};
+  const adminToggleCourse = (c) => {
+    const isOn = c.vis !== false;
+    if (isOn) {
+      // 關閉一律跳確認 dialog，不論申請數多少
+      setAdminCourseCloseConf(c);
+    } else {
+      setAdminCourses(prev => prev.map(x => x.id===c.id ? {...x, vis:true} : x));
+      adminShowToast('已成功開啟停修申請功能');
+    }
+  };
 
   // courseSettings: derive from admin data (course 深度學習, school 國立成功大學)
   const courseSettings = (() => {
@@ -1506,7 +1518,8 @@ function App() {
                   setCSearch={setAdminCSearch}
                   onEdit={c => { setAdminCurCourse(c); setAdminView('edit'); }}
                   onAdd={() => setAdminAddOpen(true)}
-                  appCounts={{'1': students.filter(s=>s.status!=='未申請').length,'2':32,'3':6,'4':105,'5':17}}
+                  onToggle={adminToggleCourse}
+                  appCounts={adminAppCounts}
                 />
               )}
               {adminView==='edit' && adminCurCourse && (
@@ -1763,6 +1776,20 @@ function App() {
             adminSaveSecs(adminCurCourse.id, cur.map(s => ids.has(s.id) ? { ...s, vis:false } : s));
             setAdminBatchCloseConf(null);
             adminShowToast('已成功關閉班別停修功能');
+          }}
+        />
+      )}
+
+      {/* ── Admin homepage course-level switch close confirm ── */}
+      {adminCourseCloseConf && (
+        <AdminConfirmDlg
+          title="即將關閉班別停修功能"
+          body="您即將關閉此班別的停修申請功能。您確定要繼續嗎？"
+          onCancel={() => setAdminCourseCloseConf(null)}
+          onConfirm={() => {
+            setAdminCourses(prev => prev.map(x => x.id===adminCourseCloseConf.id ? {...x, vis:false} : x));
+            setAdminCourseCloseConf(null);
+            adminShowToast('已成功關閉停修申請功能');
           }}
         />
       )}
