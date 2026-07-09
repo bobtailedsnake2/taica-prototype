@@ -84,11 +84,10 @@ const CDB = {
   '61113':{s:'114-2 (2026 Spring)',n:'人工智慧倫理 AI Ethics'},
   '57672':{s:'114-2 (2026 Spring)',n:'生成式AI 的人文導論'},
 };
-/* 「深度學習」(課程 id '1') 的預設停修申請注意事項 — 內容跟學生端目前顯示的
-   <NoticeContent> 完全一致（原本學生端是靠 <NoticeContent> 這個寫死的 fallback 顯示，
-   admin 端的 notes 是空的，兩邊沒有真的連動）。現在把同樣的內容灌進 admin 端的
-   notes，讓學生端改成直接讀 cs.notes 顯示，admin/學生兩邊看到的是同一份內容。 */
-const DL_NOTICE_HTML = `<p>各位 TAICA 盟校同學好：</p><p>依據 TAICA 計畫辦公室的規範，TAICA 盟校學生如欲退選「生成式人工智慧與機器學習導論」之鏡像課程，需經過主授教師的同意。</p><p>本頁面上方已提供同學需完成「期中停修意願申請表單」的填寫時程、以及主授教師需完成核准的時程供您參考。</p><p>NTU COOL 團隊將在 11/19 (三) 下班前，依照主授老師於本表單的核定結果，將主授教師同意的退選同學從課程中刪除。</p><p>敬請同學留意：</p><ul><li>「期中停修意願申請表單」<span style="color: rgb(204, 0, 0);">僅能填寫一次</span>，且送出後<span style="color: rgb(204, 0, 0);">無法撤回</span>。送出前，請務必核對所填寫之表單上的<span style="color: rgb(204, 0, 0);">課名</span>，是否為所欲申請停修的課程，以及確認填答內容是否正確。<span style="color: rgb(204, 0, 0);">敬請確認填寫內容皆正確再送出</span>。</li><li>依據 TAICA 計畫辦公室的規定，<span style="color: rgb(204, 0, 0);">同學一旦完成在 NTU COOL 上的「期中停修意願申請表單」的填寫並獲主授教師同意，即視為已經完成停修手續。</span>後續同學需自行依照所屬學校的退選流程完成校內停修手續。若有同學有填寫表單且獲主授教師同意，但並未確實依照所屬學校的停修流程，完成校內停修手續，若有任何後果同學需自行負責。</li></ul><p>以上說明，</p><p>若有任何與表單填寫相關之問題，歡迎來信或來電詢問 NTU COOL 團隊；</p><p>如有任何期中停修相關行政問題，請洽貴校 TAICA 窗口，謝謝您。</p><p>NTU COOL 平臺團隊 敬上</p><p>ntucool@ntu.edu.tw</p><p>02-3366-3367 #594</p>`;
+/* 「深度學習」(課程 id '1') 的預設停修申請注意事項 — 內容與格式依 Figma node 61:12133
+   （1.2.1 學生申請停修）：中文版在上，接著一條 "---" 分隔線，下面是完整的英文版，
+   紅字強調的片語跟中文版一一對應。admin 端與學生端共用這份 notes。 */
+const DL_NOTICE_HTML = `<p>---English Version Below---</p><p>各位 TAICA 盟校同學好：</p><p>依據 TAICA 計畫辦公室的規範，TAICA 盟校學生如欲退選「生成式人工智慧與機器學習導論」之鏡像課程，需經過主授教師的同意。</p><p>本頁面上方已提供同學需完成「期中停修意願申請表單」的填寫時程、以及主授教師需完成核准的時程供您參考。</p><p>NTU COOL 團隊將在 11/19 (三) 下班前，依照主授老師於本表單的核定結果，將主授教師同意的退選同學從課程中刪除。</p><p>敬請同學留意：</p><ul><li>「期中停修意願申請表單」<span style="color: rgb(204, 0, 0);">僅能填寫一次</span>，且送出後<span style="color: rgb(204, 0, 0);">無法撤回</span>。送出前，請務必核對所填寫之表單上的<span style="color: rgb(204, 0, 0);">課名</span>，是否為所欲申請停修的課程，以及確認填答內容是否正確。<span style="color: rgb(204, 0, 0);">敬請確認填寫內容皆正確再送出</span>。</li><li>依據 TAICA 計畫辦公室的規定，<span style="color: rgb(204, 0, 0);">同學一旦完成在 NTU COOL 上的「期中停修意願申請表單」的填寫並獲主授教師同意，即視為已經完成停修手續。</span>後續同學需自行依照所屬學校的退選流程完成校內停修手續。若有同學有填寫表單且獲主授教師同意，但並未確實依照所屬學校的停修流程，完成校內停修手續，若有任何後果同學需自行負責。</li></ul><p>以上說明，</p><p>若有任何與表單填寫相關之問題，歡迎來信或來電詢問 NTU COOL 團隊；</p><p>如有任何期中停修相關行政問題，請洽貴校 TAICA 窗口，謝謝您。</p><p>NTU COOL 平臺團隊 敬上</p><p>ntucool@ntu.edu.tw</p><p>02-3366-3367 #594</p><p>---</p><p>Dear TAICA Partner University Students,</p><p>According to the regulations of the TAICA Office, students from TAICA partner universities who wish to withdraw from this course must obtain approval from the primary instructor.</p><p>The timetable above is the schedule for students to complete the "Midterm Withdrawal Application Form," and for the primary instructors to finalize the approval process.</p><p>The NTU COOL Operation Team will remove the approved students from the courses by the end of the workday on Nov 19 (Wed), based on the instructor's approval results recorded in the form.</p><p>Important Reminders</p><ul><li>The Midterm Withdrawal Application Form <span style="color: rgb(204, 0, 0);">can only be submitted once and cannot be withdrawn after submission</span>. Before submitting, please make sure that the <span style="color: rgb(204, 0, 0);">course title</span> on the form matches the course you wish to withdraw from, and double-check that all the information you have entered is correct. <span style="color: rgb(204, 0, 0);">Please ensure all information is accurate before submission</span>.</li><li>According to the TAICA Office regulations, <span style="color: rgb(204, 0, 0);">once you have submitted the Midterm Withdrawal Application Form on NTU COOL and obtained instructor approval, the withdrawal process is considered complete</span>. However, you must also follow your home university's official withdrawal procedures to finalize the process. If you submit the form and receive instructor approval but fail to complete your home university's withdrawal procedure, you will be solely responsible for any consequences.</li></ul><p>Sincerely,</p><p>NTU COOL Operation Team</p><p>ntucool@ntu.edu.tw</p><p>02-3366-3367 #594</p>`;
 
 const mkSecs = (st,et,ad,notes) =>
   BASE_SECS.map(b=>({...b,st:st||'2026/07/01 00:00',et:et||'2026/07/25 23:59',ad:ad||'2026/08/08 23:59',op:'admin2',ot:'2026/03/17 16:54',vis:['1','2','3','4','5'].includes(b.id),notes:notes||''}));
@@ -1255,7 +1254,7 @@ function StudentView({ application, onSubmit, courseSettings }) {
               </div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                <MuiTextField multiline rows={4} label="停修原因" value={reason} onChange={e => e.target.value.length<=500 && setReason(e.target.value)} />
+                <MuiTextField multiline rows={4} label="停修原因（必填）" value={reason} onChange={e => e.target.value.length<=500 && setReason(e.target.value)} />
                 <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right', margin:0 }}>{reason.length} / 500</p>
               </div>
             )}
@@ -1311,7 +1310,6 @@ function App() {
   const [searchName, setSearchName] = useState('');
   const [classFilter, setClassFilter] = useState('全部');
   const [statusFilter, setStatusFilter] = useState('待審核');
-  const [searchErrorType, setSearchErrorType] = useState(null); // null | 'invalidChars' | 'tooLong'
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
   const [batchComment, setBatchComment] = useState('');
@@ -1395,8 +1393,7 @@ function App() {
   };
 
   const baseFiltered = effectiveStudents.filter(s => {
-    // When search has validation error, don't apply name filter
-    const nm = searchName==='' || searchErrorType !== null || s.name.includes(searchName);
+    const nm = searchName==='' || s.name.includes(searchName);
     const cl = classFilter==='全部' || s.school===classFilter;
     const st = statusFilter==='全部' ||
       (statusFilter==='待審核' && s.status==='待審核') ||
@@ -1418,7 +1415,8 @@ function App() {
       });
 
   const pendingCount = effectiveStudents.filter(s => s.status==='待審核' || s.status==='逾期審核').length;
-  const hasSelections = selected.length > 0;
+  const hasAnyApplication = effectiveStudents.some(s => s.status!=='未申請');
+  const hasSelections = selected.length > 0 && hasAnyApplication;
   const isSelected = id => selected.includes(id);
   const selectableRows = filtered.filter(s => s.status!=='逾期審核');
   const allSelected = selectableRows.length>0 && selected.length===selectableRows.length;
@@ -1489,6 +1487,7 @@ function App() {
   };
 
   const submitDisabled = !currentStudent || currentStudent.status==='逾期審核' ||
+    dlgComment.length>500 ||
     (currentStudent?.status==='待審核' && dlgStatus==='') ||
     (currentStudent?.status!=='待審核' && dlgStatus===initDlgStatus && dlgComment===initDlgComment);
 
@@ -1596,21 +1595,7 @@ function App() {
                   <MuiTextField
                     label="學生姓名"
                     value={searchName}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setSearchName(val);
-                      if (val === '') {
-                        setSearchErrorType(null);
-                      } else if (val.length > 50) {
-                        setSearchErrorType('tooLong');
-                      } else if (/[^一-鿿㐀-䶿豈-﫿ꀀ-꒏A-Za-z]/.test(val)) {
-                        setSearchErrorType('invalidChars');
-                      } else {
-                        setSearchErrorType(null);
-                      }
-                    }}
-                    error={!!searchErrorType}
-                    helperText={searchErrorType==='invalidChars' ? '請輸入中文或英文姓名' : searchErrorType==='tooLong' ? '字數上限為 50 字' : ''}
+                    onChange={e => setSearchName(e.target.value)}
                     style={{ width:220 }}
                   />
                   <MuiSelect label="班別" value={classFilter} onChange={v => setClassFilter(v)} options={classOptions} width={220} />
@@ -1729,14 +1714,14 @@ function App() {
               </p>
               <p style={{ fontSize:16, color:'#333', lineHeight:1.6, margin:0 }}>確定要繼續嗎？</p>
               <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
-                <MuiTextField multiline fillHeight label="新的審核評語 (選填)" value={batchComment} onChange={e => e.target.value.length<=500 && setBatchComment(e.target.value)} style={{ flex:1 }} />
-                <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right', margin:0, flexShrink:0 }}>{batchComment.length} / 500</p>
+                <MuiTextField multiline fillHeight label="審核評語 (選填)" value={batchComment} onChange={e => setBatchComment(e.target.value)} error={batchComment.length>500} style={{ flex:1 }} />
+                <p style={{ fontSize:12, color: batchComment.length>500 ? '#CC0000' : 'rgba(51,51,51,0.6)', textAlign:'right', margin:0, flexShrink:0 }}>{batchComment.length} / 500</p>
               </div>
             </div>
             {/* Actions */}
             <div style={{ padding:8, display:'flex', justifyContent:'flex-end', gap:8, flexShrink:0, borderTop:'1px solid rgba(0,0,0,0.12)' }}>
               <button onClick={() => setConfirmOpen(false)} className="mui-btn mui-text-primary" style={{ background:'transparent', color:'#0099cc', border:'none', borderRadius:4, padding:'6px 8px', fontSize:16, fontWeight:500, cursor:'pointer' }}>取消</button>
-              <button onClick={() => { execBatch(pendingStatus, batchComment); setConfirmOpen(false); }} className="mui-btn mui-contained-primary" style={{ background:'#0099cc', color:'white', border:'none', borderRadius:4, padding:'6px 16px', fontSize:16, fontWeight:500, cursor:'pointer' }}>確定</button>
+              <button disabled={batchComment.length>500} onClick={() => { execBatch(pendingStatus, batchComment); setConfirmOpen(false); }} className="mui-btn mui-contained-primary" style={{ background:batchComment.length>500?'rgba(0,0,0,0.12)':'#0099cc', color:batchComment.length>500?'rgba(0,0,0,0.38)':'white', border:'none', borderRadius:4, padding:'6px 16px', fontSize:16, fontWeight:500, cursor:batchComment.length>500?'default':'pointer' }}>確定</button>
             </div>
           </div>
         </div>
@@ -1889,8 +1874,8 @@ function App() {
                     />
                   </div>
                   <div>
-                    <MuiTextField multiline rows={3} label="審核評語 (選填)" value={dlgComment} onChange={e => e.target.value.length<=500 && setDlgComment(e.target.value)} />
-                    <p style={{ fontSize:12, color:'rgba(51,51,51,0.6)', textAlign:'right', marginTop:4 }}>{dlgComment.length} / 500</p>
+                    <MuiTextField multiline rows={3} label="審核評語 (選填)" value={dlgComment} onChange={e => setDlgComment(e.target.value)} error={dlgComment.length>500} />
+                    <p style={{ fontSize:12, color: dlgComment.length>500 ? '#CC0000' : 'rgba(51,51,51,0.6)', textAlign:'right', marginTop:4 }}>{dlgComment.length} / 500</p>
                   </div>
                 </>
               )}
