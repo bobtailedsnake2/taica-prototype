@@ -16,6 +16,7 @@
 .ql-toolbar { border-top-left-radius: 4px; border-top-right-radius: 4px; background: #fafafa; }
 .ql-editor { min-height: 100px; }
 .ql-editor.ql-blank::before { color: rgba(0,0,0,0.38); font-style: normal; }
+@keyframes admin-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -62,6 +63,49 @@ const INIT_STUDENTS = [
   { id:15, name:'鄭O萱', school:'國立清華大學', studentId:'清大_s113044218', loginId:'s113044218@m113.nthu.edu.tw', applyTime:'2026/05/02 17:25', deadline:'2026/05/13 23:59', reason:'系上必修實驗課與本課程時段重疊，學期中才發現衝突，為能完成必修課程，故申請停修。', status:'同意', approvalTime:'2026/05/08 10:20', approver:'林俊叡 (教師)', lastModified:new Date('2026/05/08 10:20').getTime() },
 ];
 
+/* ─── 模擬學生資料，湊出使用者指定的測試 case ───────────────────────────────
+   總共 150 位學生，依全域排序（待審核 > 逾期審核 > 同意 > 不同意）後的位置：
+   1-120 待審核、121-130 逾期審核、131-140 同意、141-150 不同意。
+   上面手寫的 15 位原始學生裡，已經有 6 位待審核、2 位逾期審核、4 位同意、
+   3 位不同意，所以這裡只需要再生成 114/8/6/7 位，湊到剛好 120/10/10/10。 */
+const GEN_SURNAMES = ['陳','林','黃','張','李','王','吳','劉','蔡','楊','許','鄭','謝','洪','邱','曾','廖','賴','徐','周','葉','蘇','莊','呂','江','何','蕭','羅','高','潘'];
+const GEN_GIVEN = ['安','宇','翔','婷','軒','霖','蓁','宸','恩','澤','妍','哲','嫻','彥','珊','弘','萱','浩','雯','珮','庭','岑','恬','駿','曜','悅','昕','紘','薰','珈'];
+const GEN_SCHOOLS = ['國立臺灣大學','國立臺灣科技大學','國立清華大學','國立陽明交通大學','國立成功大學','國立中山大學','國立中央大學','國立臺灣師範大學','國立政治大學','國立中興大學','南臺科技大學','中國醫藥大學','逢甲大學'];
+const GEN_REASONS = [
+  '因課業負擔過重，評估後決定申請停修，以維持其他科目的學習品質。',
+  '因個人時間安排與課程進度衝突，短期內難以跟上課程進度，故申請停修。',
+  '因先修知識不足，修讀後發現吃力，故申請停修，待日後準備充分再修。',
+  '因健康及家庭因素影響學習進度，故申請停修本課程。',
+];
+const genStudent = (id, status, j) => {
+  const surname = GEN_SURNAMES[j % GEN_SURNAMES.length];
+  const given = GEN_GIVEN[(j * 7) % GEN_GIVEN.length];
+  const school = GEN_SCHOOLS[j % GEN_SCHOOLS.length];
+  const day = 1 + (j % 27);
+  const applyTime = `2026/05/${String(day).padStart(2,'0')} 09:00`;
+  const base = {
+    id, name:`${surname}O${given}`, school,
+    studentId:`GEN_${1000+id}`, loginId:`gen${id}@example.edu.tw`,
+    applyTime, reason: GEN_REASONS[j % GEN_REASONS.length], status,
+  };
+  if (status === '逾期審核') {
+    return { ...base, deadline:`2026/04/${String(1+(j%27)).padStart(2,'0')} 23:59` };
+  }
+  if (status === '待審核') {
+    return { ...base, deadline:'2026/05/13 23:59' };
+  }
+  const approvalTime = `2026/05/${String(Math.min(day+2,28)).padStart(2,'0')} 14:00`;
+  return { ...base, deadline:'2026/05/13 23:59', approvalTime, approver:'林俊叡 (教師)', lastModified:new Date(approvalTime.replace(/\//g,'-')).getTime() };
+};
+const GEN_STATUS_PLAN = [
+  ...Array(114).fill('待審核'),
+  ...Array(8).fill('逾期審核'),
+  ...Array(6).fill('同意'),
+  ...Array(7).fill('不同意'),
+];
+const GEN_STUDENTS = GEN_STATUS_PLAN.map((status, j) => genStudent(16 + j, status, j));
+INIT_STUDENTS.push(...GEN_STUDENTS);
+
 /* ─── Admin Static Data ──────────────────────────────────────────────────── */
 const INIT_COURSES = [
   {id:'1', semester:'114-2 (2026 Spring)', courseId:'57497', courseName:'深度學習 Deep Learning'},
@@ -69,6 +113,9 @@ const INIT_COURSES = [
   {id:'3', semester:'114-2 (2026 Spring)', courseId:'57494', courseName:'大型語言模型與資訊安全系統 Applying Large Language Models in Cybersecurity Systems'},
   {id:'4', semester:'114-2 (2026 Spring)', courseId:'57496', courseName:'生成式AI應用系統與工程 Generative AI Application Systems and Engineering'},
   {id:'5', semester:'114-2 (2026 Spring)', courseId:'55850', courseName:'機率與統計 Probability and Statistics'},
+  {id:'6', semester:'114-1 (2025 Fall)', courseId:'50369', courseName:'TAICA_人工智慧導論_主導課程'},
+  {id:'7', semester:'114-1 (2025 Fall)', courseId:'50371', courseName:'TAICA_自然語言處理_主導課程'},
+  {id:'8', semester:'114-1 (2025 Fall)', courseId:'50370', courseName:'TAICA_智慧人機互動_主導課程'},
 ];
 const BASE_SECS = [
   {id:'1', name:'國立政治大學', alwaysOn:true},
@@ -173,6 +220,9 @@ function CloseIcon({ size=18, color='currentColor' }) {
 }
 function ChevronLeftIcon({ size=18, color='currentColor' }) {
   return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color} style={{display:'block',flexShrink:0}}><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>;
+}
+function ChevronRightIcon({ size=18, color='currentColor' }) {
+  return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color} style={{display:'block',flexShrink:0}}><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>;
 }
 function ArrowDownIcon({ size=18, color='currentColor' }) {
   return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color} style={{display:'block',flexShrink:0}}><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>;
@@ -282,6 +332,30 @@ function DateTimeCell({ value }) {
 }
 
 /* ─── MUI-style Select ───────────────────────────────────────────────────── */
+/* ─── ReviewRadioGroup ───────────────────────────────────────────────────── */
+/* 教師回覆：同意停修 / 不同意停修，依 Figma node 59:3755 改用 RadioGroup（原本是 Select）。
+   disabled 時（逾期審核）仍顯示目前選取狀態，但不可互動。 */
+function ReviewRadioGroup({ value, onChange, disabled }) {
+  const opts = [ { key:'同意', label:'同意停修' }, { key:'不同意', label:'不同意停修' } ];
+  return (
+    <div style={{ display:'flex', gap:24 }}>
+      {opts.map(o => (
+        <label key={o.key} style={{ display:'flex', alignItems:'center', gap:6, fontSize:14, color: disabled ? 'rgba(0,0,0,0.38)' : '#333', cursor: disabled ? 'default' : 'pointer' }}>
+          <input
+            type="radio"
+            name="teacherReviewResult"
+            checked={value === o.key}
+            disabled={disabled}
+            onChange={() => onChange && onChange(o.key)}
+            style={{ accentColor:'#0099cc', width:18, height:18, cursor: disabled ? 'default' : 'pointer' }}
+          />
+          {o.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function MuiSelect({ label, value, onChange, options, width = 200 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef();
@@ -445,58 +519,80 @@ function MuiTextField({ label, value, onChange, onKeyDown, type='text', error, h
 }
 
 /* ─── Export Split Button ────────────────────────────────────────────────── */
-function ExportSplitButton({ allRows, filteredRows }) {
-  const [open, setOpen] = useState(false);
-  const [selectedIdx, setSelectedIdx] = useState(0);
-  const ref = useRef();
-
-  const options = ['匯出整份名單', '匯出目前的顯示內容'];
-
-  useEffect(() => {
-    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  // 點擊 menu 選項（或左側主按鈕）直接匯出 xlsx，不是只切換按鈕顯示的文字。
-  const doExport = idx => {
-    const rows = idx === 0 ? allRows : filteredRows;
+function ExportSplitButton({ allRows }) {
+  // 移除下拉選單（原本的「匯出目前的顯示內容」選項），改為單一按鈕，
+  // 點擊直接匯出整份名單 xlsx。
+  const doExport = () => {
+    const rows = allRows;
     if (!window.XLSX || !rows || rows.length === 0) return;
     const ws = window.XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = Object.keys(rows[0] || {}).map(k => ({ wch: k === '停修原因' ? 40 : 14 }));
     const wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, '停修申請名單');
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    window.XLSX.writeFile(wb, `停修申請_${options[idx] === '匯出整份名單' ? '整份名單' : '目前顯示內容'}_${stamp}.xlsx`);
+    window.XLSX.writeFile(wb, `停修申請_整份名單_${stamp}.xlsx`);
   };
 
-  const base = { color:'#0099cc', background:'transparent', border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:500 };
+  const base = { color:'#0099cc', background:'transparent', border:'1px solid rgba(0,153,204,0.5)', borderRadius:4, cursor:'pointer', fontFamily:'inherit', fontWeight:500 };
 
   return (
-    <div ref={ref} style={{ position:'relative', display:'inline-flex' }}>
-      <div style={{ display:'inline-flex', border:'1px solid rgba(0,153,204,0.5)', borderRadius:4 }}>
-        <button onClick={() => { setSelectedIdx(selectedIdx); doExport(selectedIdx); }} style={{ ...base, padding:'6px 16px', fontSize:14, borderRight:'1px solid rgba(0,153,204,0.5)' }}>
-          {options[selectedIdx]}
+    <button onClick={doExport} style={{ ...base, padding:'6px 16px', fontSize:14 }}>
+      匯出整份名單
+    </button>
+  );
+}
+
+/* ─── TableFooter（分頁） ────────────────────────────────────────────────── */
+/* 依 Figma node 1199:48626 + 1246:51703（「前100位同意」後，篩待審核顯示
+   「1-20 of 20」、‹›皆disabled）確認的最終規則：
+   - 前段 X-Y：目前這一頁「篩選後」實際看到的筆數（0 筆時只顯示「0」，不顯示「0-0」）。
+   - 後段 of Z：目前這個篩選條件，跨所有頁加總起來的全系統總筆數（不是原始總筆數、
+     也不是只看本頁）——這是後端可以用一個 COUNT 查詢便宜取得的數字，跟「filter 只能
+     在本頁資料裡篩」這個限制不衝突（限制只卡在「回傳符合條件的資料列」，不卡總數）。
+   - 換頁箭頭：prevDisabled 只看是否還有上一批原始資料；nextDisabled 除了原始資料的
+     頁數邊界，還要看「目前這個篩選條件的全系統筆數，是否已經在目前頁（含之前頁）
+     全部出現過」——一旦看過的筆數 ≥ 全系統符合筆數，代表後面頁不會再有更多符合的
+     資料了，直接停用 ›（呼應：教師批次同意完第1頁的待審核後，全系統只剩20位待審核，
+     全部20位重新排序後都落在第1頁裡，所以按不到第2頁）。 */
+function TableFooter({ prevDisabled, nextDisabled, rowsPerPage, onRowsPerPageChange, rangeLabel, onPrev, onNext }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+  useEffect(() => {
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  return (
+    <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', gap:26, padding:'8px 4px' }}>
+      <span style={{ fontSize:12, color:'rgba(51,51,51,0.6)', lineHeight:'166%' }}>每頁顯示筆數:</span>
+      <div ref={ref} style={{ position:'relative' }}>
+        <div onClick={() => setOpen(p => !p)} style={{ display:'flex', alignItems:'center', gap:2, cursor:'pointer', fontSize:12, color:'#333' }}>
+          {rowsPerPage}
+          <ArrowDownIcon size={16} color="rgba(0,0,0,0.5)" />
+        </div>
+        {open && (
+          <div style={{ position:'absolute', bottom:'calc(100% + 4px)', right:0, background:'white', borderRadius:4, boxShadow:'0px 5px 5px -3px rgba(0,0,0,0.2), 0px 8px 10px 1px rgba(0,0,0,0.14), 0px 3px 14px 2px rgba(0,0,0,0.12)', zIndex:20, padding:'4px 0' }}>
+            {[25, 50, 100].map(n => (
+              <div
+                key={n}
+                onClick={() => { onRowsPerPageChange(n); setOpen(false); }}
+                style={{ padding:'6px 16px', fontSize:13, color:'#333', cursor:'pointer', whiteSpace:'nowrap', background: n===rowsPerPage ? 'rgba(0,153,204,0.08)' : 'transparent' }}
+              >
+                {n}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <span style={{ fontSize:12, color:'#333', lineHeight:'166%', whiteSpace:'nowrap' }}>{rangeLabel}</span>
+      <div style={{ display:'flex', alignItems:'center' }}>
+        <button onClick={onPrev} disabled={prevDisabled} style={{ background:'none', border:'none', padding:6, cursor: prevDisabled ? 'default' : 'pointer', color: prevDisabled ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.54)', display:'inline-flex' }}>
+          <ChevronLeftIcon size={20} />
         </button>
-        <button onClick={() => setOpen(p => !p)} style={{ ...base, padding:'4px 8px', display:'flex', alignItems:'center' }}>
-          <span style={{ fontSize:18, lineHeight:1, display:'block' }}>▾</span>
+        <button onClick={onNext} disabled={nextDisabled} style={{ background:'none', border:'none', padding:6, cursor: nextDisabled ? 'default' : 'pointer', color: nextDisabled ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.54)', display:'inline-flex' }}>
+          <ChevronRightIcon size={20} />
         </button>
       </div>
-      {open && (
-        <div style={{ position:'absolute', top:'calc(100% + 2px)', right:0, background:'white', borderRadius:4, boxShadow:'0px 5px 5px -3px rgba(0,0,0,0.2), 0px 8px 10px 1px rgba(0,0,0,0.14), 0px 3px 14px 2px rgba(0,0,0,0.12)', zIndex:9999, padding:'8px 0', whiteSpace:'nowrap' }}>
-          {options.map((opt, i) => (
-            <div
-              key={opt}
-              onMouseDown={() => { setSelectedIdx(i); setOpen(false); doExport(i); }}
-              style={{ padding:'6px 16px', fontSize:14, color:'#333', cursor:'pointer', background: i===selectedIdx ? 'rgba(0,153,204,0.04)' : 'transparent' }}
-              onMouseEnter={e => e.currentTarget.style.background = i===selectedIdx ? 'rgba(0,153,204,0.08)' : 'rgba(0,0,0,0.04)'}
-              onMouseLeave={e => e.currentTarget.style.background = i===selectedIdx ? 'rgba(0,153,204,0.04)' : 'transparent'}
-            >
-              {opt}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -700,7 +796,7 @@ function MuiTooltip({ title, children }) {
   );
 }
 
-function AdminDlg({ title, onClose, footer, children, overlayAlert }) {
+function AdminDlg({ title, onClose, footer, children, overlayAlert, hideFooter }) {
   return (
     <div onClick={ev => { if (ev.target === ev.currentTarget) onClose(); }}
       style={{position:'fixed',inset:0,zIndex:300,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -711,14 +807,29 @@ function AdminDlg({ title, onClose, footer, children, overlayAlert }) {
           <div style={{flex:1,overflow:'auto',padding:'0 24px 16px',minHeight:0,display:'flex',flexDirection:'column'}}>
             {children}
           </div>
-          <div style={{height:1,background:'rgba(0,0,0,0.12)',flexShrink:0}}/>
-          <div style={{padding:'10px 24px',display:'flex',alignItems:'center',justifyContent:'flex-end',gap:8,flexShrink:0}}>
-            {footer}
-          </div>
+          {!hideFooter && <div style={{height:1,background:'rgba(0,0,0,0.12)',flexShrink:0}}/>}
+          {!hideFooter && (
+            <div style={{padding:'10px 24px',display:'flex',alignItems:'center',justifyContent:'flex-end',gap:8,flexShrink:0}}>
+              {footer}
+            </div>
+          )}
         </div>
         {overlayAlert && <div style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',zIndex:10}}>{overlayAlert}</div>}
       </div>
     </div>
+  );
+}
+
+/* 依 Figma node 1217:44966（3.2.1.2 Dialog loading）：64px 轉動圓圈，置中於 dialog content 區。 */
+function Spinner({ size = 64, color = '#0099CC' }) {
+  return (
+    <div style={{
+      width:size, height:size, borderRadius:'50%',
+      border:`4px solid rgba(0,153,204,0.15)`,
+      borderTopColor: color,
+      animation: 'admin-spin 0.9s linear infinite',
+      flexShrink:0,
+    }} />
   );
 }
 
@@ -756,20 +867,25 @@ function AdminBtn({ children, onClick, disabled, variant='primary', icon, style:
 }
 
 /* ─── Admin Date Field helper ─────────────────────────────────────────────── */
-/* 逐欄位紅框 + 具體衝突訊息（例如「申請開始時間不可晚於申請截止時間」），
-   哪兩個欄位有衝突就哪兩個顯示紅框，訊息本身即會點名對應的另一個欄位。 */
-function AdminDateField({ label, value, onChange, errMsg }) {
+/* 依 Figma node 516:25801（3.2.3.5 StepsDialog 時間順序檢查）：三個時間欄位一律
+   顯示紅框（不逐個判斷是哪兩個衝突），下方統一顯示一條 error 說明規則即可，
+   不然每個欄位各自判斷、各自不同文字，太複雜。 */
+function AdminDateField({ label, value, onChange, error }) {
   return (
     <MuiTextField
       label={label}
       type="datetime-local"
       value={value}
       onChange={ev => onChange(ev.target.value)}
-      error={!!errMsg}
-      helperText={errMsg || ''}
+      error={!!error}
       style={{flex:1}}
     />
   );
+}
+
+function TimeOrderErr({ show }) {
+  if (!show) return null;
+  return <p style={{fontSize:12,color:'#CC0000',margin:0,lineHeight:'166%'}}>時間設定需符合 申請開始時間 &lt; 申請截止時間 &lt; 教師審核期限</p>;
 }
 
 /* ─── AddDlg ─────────────────────────────────────────────────────────────── */
@@ -782,6 +898,8 @@ function AddDlg({ onClose, onDone, courses }) {
   const [et, setEt] = useState('');
   const [ap, setAp] = useState('');
   const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setLoading(false), 3000); return () => clearTimeout(t); }, []);
 
   const clearErrs = () => { setErrInline(''); setDlgAlert(null); };
 
@@ -796,8 +914,6 @@ function AddDlg({ onClose, onDone, courses }) {
     if (!d) { setDlgAlert({ type:'warning', msg:'查找不到此 ID 的課程' }); return; }
     setAdded(p => [...p, { id:'t'+Date.now(), courseId:id, semester:d.s, courseName:d.n }]);
     setInp('');
-    setDlgAlert({ type:'success', msg:'已成功加入課程' });
-    setTimeout(() => setDlgAlert(a => a?.type==='success' ? null : a), 3000);
   };
 
   const tE = mkTErr(st, et, ap);
@@ -828,6 +944,16 @@ function AddDlg({ onClose, onDone, courses }) {
     </>
   );
 
+  if (loading) {
+    return (
+      <AdminDlg title="新增開放停修課程" onClose={onClose} hideFooter>
+        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <Spinner size={64}/>
+        </div>
+      </AdminDlg>
+    );
+  }
+
   return (
     <AdminDlg title="新增開放停修課程" onClose={onClose} footer={footer} overlayAlert={alertEl}>
       <div style={{display:'flex',flexDirection:'column',gap:40,paddingTop:8}}>
@@ -836,7 +962,7 @@ function AddDlg({ onClose, onDone, courses }) {
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
           <div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
             <MuiTextField
-              label="課程 ID"
+              label="進行中學期的課程 ID"
               value={inp}
               onChange={ev => { setInp(ev.target.value); clearErrs(); }}
               onKeyDown={ev => ev.key==='Enter' && addC()}
@@ -885,10 +1011,11 @@ function AddDlg({ onClose, onDone, courses }) {
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             <p style={{fontSize:16,color:'rgba(51,51,51,0.6)',margin:0,lineHeight:1.75}}>預設申請與審核期間</p>
             <div style={{display:'flex',gap:16}}>
-              <AdminDateField label="申請開始時間" value={st} onChange={setSt} errMsg={tE('st')}/>
-              <AdminDateField label="申請截止時間" value={et} onChange={setEt} errMsg={tE('et')}/>
-              <AdminDateField label="教師審核期限" value={ap} onChange={setAp} errMsg={tE('ap')}/>
+              <AdminDateField label="申請開始時間" value={st} onChange={setSt} error={anyTimeErr}/>
+              <AdminDateField label="申請截止時間" value={et} onChange={setEt} error={anyTimeErr}/>
+              <AdminDateField label="教師審核期限" value={ap} onChange={setAp} error={anyTimeErr}/>
             </div>
+            <TimeOrderErr show={anyTimeErr}/>
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:6}}>
             <p style={{fontSize:16,color:'rgba(51,51,51,0.6)',margin:0,lineHeight:1.75}}>預設停修申請注意事項</p>
@@ -932,10 +1059,11 @@ function SecDlg({ sec, onClose, onSave }) {
           <p style={{fontSize:14,color:'rgba(0,0,0,0.6)',margin:0}}>{sec.name}</p>
         </div>
         <div style={{display:'flex',gap:12}}>
-          <AdminDateField label="申請開始時間 *" value={st} onChange={setSt} errMsg={tE('st')}/>
-          <AdminDateField label="申請截止時間 *" value={et} onChange={setEt} errMsg={tE('et')}/>
-          <AdminDateField label="教師審核期限 *" value={ap} onChange={setAp} errMsg={tE('ap')}/>
+          <AdminDateField label="申請開始時間 *" value={st} onChange={setSt} error={anyE}/>
+          <AdminDateField label="申請截止時間 *" value={et} onChange={setEt} error={anyE}/>
+          <AdminDateField label="教師審核期限 *" value={ap} onChange={setAp} error={anyE}/>
         </div>
+        <TimeOrderErr show={anyE}/>
         <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
           <p style={{fontSize:14,fontWeight:500,marginBottom:6,flexShrink:0}}>申請注意事項</p>
           <QuillEditor value={notes} onChange={setNotes} />
@@ -970,10 +1098,11 @@ function BatchDlg({ secs, onClose, onSave }) {
     <AdminDlg title="批次編輯班別設定" onClose={onClose} footer={footer}>
       <div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:14,flex:1,minHeight:0}}>
         <div style={{display:'flex',gap:12}}>
-          <AdminDateField label="申請開始時間 *" value={st} onChange={setSt} errMsg={tE('st')}/>
-          <AdminDateField label="申請截止時間 *" value={et} onChange={setEt} errMsg={tE('et')}/>
-          <AdminDateField label="教師審核期限 *" value={ap} onChange={setAp} errMsg={tE('ap')}/>
+          <AdminDateField label="申請開始時間 *" value={st} onChange={setSt} error={anyE}/>
+          <AdminDateField label="申請截止時間 *" value={et} onChange={setEt} error={anyE}/>
+          <AdminDateField label="教師審核期限 *" value={ap} onChange={setAp} error={anyE}/>
         </div>
+        <TimeOrderErr show={anyE}/>
         <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',userSelect:'none',flexShrink:0}}>
           <input type="checkbox" checked={ow} onChange={ev=>setOw(ev.target.checked)} style={{accentColor:AC,width:17,height:17}}/>
           覆寫注意事項
@@ -1011,7 +1140,7 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
             <th style={{textAlign:'left',padding:'0 14px',fontSize:13,fontWeight:500,width:88}}>課程 ID</th>
             <th style={{textAlign:'left',padding:'0 14px',fontSize:13,fontWeight:500}}>課程名稱</th>
             <th style={{textAlign:'center',padding:'0 14px',fontSize:13,fontWeight:500,width:80}}>申請數</th>
-            <th style={{width:100}}/>
+            <th style={{width:150}}/>
           </tr></thead>
           <tbody>{filt.map(c => (
             <tr key={c.id} style={{height:50,borderTop:'1px solid rgba(0,0,0,0.06)'}}>
@@ -1019,10 +1148,11 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
               <td style={{padding:'0 14px',fontSize:13}}>{c.courseId}</td>
               <td style={{padding:'0 14px',fontSize:13}}>{c.courseName}</td>
               <td style={{padding:'0 14px',fontSize:13,textAlign:'center',fontWeight:500}}>{(appCounts&&appCounts[c.id])||0}</td>
-              <td style={{padding:'0 14px',width:100}}>
+              <td style={{padding:'0 14px',width:150}}>
                 <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8}}>
                   <button onClick={()=>onEdit(c)} style={{background:'none',border:'none',cursor:'pointer',padding:5,display:'inline-flex',alignItems:'center',color:'rgba(0,0,0,0.54)',borderRadius:'50%'}}><EditIcon size={18}/></button>
                   <Tog on={c.vis !== false} onChange={()=>onToggle(c)}/>
+                  <span style={{fontSize:14,lineHeight:'1.43',color:'#333',whiteSpace:'nowrap'}}>{c.vis !== false ? '開啟' : '關閉'}</span>
                 </div>
               </td>
             </tr>
@@ -1035,11 +1165,14 @@ function AdminListView({ courses, setCourses, semester, setSemester, cSearch, se
 }
 
 /* ─── AdminEditView ──────────────────────────────────────────────────────── */
-function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBatchClose, onUpdate, onBack, showToast }) {
+function AdminEditView({ course, secs, onUpdateSec, onEditSec, onBatchSecs, onBatchClose, onUpdate, onBack, showToast, resetSelSignal }) {
   const [search, setSearch]     = useState('');
   const [sel,    setSel]        = useState([]);
   const [switchSortDir, setSwitchSortDir] = useState(1); // 1 = 開啟在上（預設）, -1 = 關閉在上
   const hasSel    = sel.length > 0;
+
+  // 批次操作成功後不維持勾選
+  useEffect(() => { setSel([]); }, [resetSelSignal]);
 
   /* stable 申請數 — matches Figma sample data。COUNT_MAP 是用共用的班別範本 id（'1'~'7'）查表，
      只對原始 5 門 demo 課程（INIT_COURSES，id '1'~'5'）有意義；新增的課程（id 為亂數字串）
@@ -1323,6 +1456,13 @@ function App() {
   const [searchName, setSearchName] = useState('');
   const [classFilter, setClassFilter] = useState('全部');
   const [statusFilter, setStatusFilter] = useState('待審核');
+  // 分頁：page 為目前第幾批「原始資料」（0-indexed），rowsPerPage 為每批筆數。
+  // 篩選（姓名/班別/審核結果）只作用在目前這一批已經抓下來的原始資料裡，換頁時
+  // 抓下一批 100 筆再重新套用篩選，不會像一般分頁一樣，篩選結果涵蓋全系統資料。
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
+  // 換頁/換每頁筆數後，勾選跟排序凍結都是上一批資料的狀態，清掉避免跨頁殘留
+  useEffect(() => { setSelected([]); setFrozenOrder(null); }, [page, rowsPerPage]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
   const [batchComment, setBatchComment] = useState('');
@@ -1350,6 +1490,8 @@ function App() {
   const [adminBatchCloseConf, setAdminBatchCloseConf] = useState(null);
   const [adminCourseCloseConf, setAdminCourseCloseConf] = useState(null);
   const [adminToast, setAdminToast] = useState(null);
+  // 批次操作成功後，通知 AdminEditView 清空勾選（不維持勾選狀態）
+  const [adminBatchTick, setAdminBatchTick] = useState(0);
 
   const adminShowToast = (msg) => { setAdminToast(msg); setTimeout(() => setAdminToast(null), 4000); };
   const adminGetSecs = (courseId) => adminCS[courseId] || mkSecs();
@@ -1405,7 +1547,22 @@ function App() {
     setTimeout(() => setStudentToast(false), 4000);
   };
 
-  const baseFiltered = effectiveStudents.filter(s => {
+  // 「原始批次」順序 — 對應後端固定回傳的分頁邊界：後端本來就依「審核結果優先序
+  // （待審核 > 逾期審核 > 同意 > 不同意）+ 最後異動時間」排序後才切頁，所以就算換頁，
+  // 全體排序仍然是連續的，不會因為分頁而打亂（例如第1頁尾端出現「不同意」，前提必須是
+  // 全體真的已經沒有更高優先序的資料了，而不是恰好落在同一個原始批次裡）。
+  const rawOrdered = [...effectiveStudents].sort((a, b) => {
+    const d = statusOrder[a.status] - statusOrder[b.status];
+    if (d === 0) return (b.lastModified || 0) - (a.lastModified || 0);
+    return d;
+  });
+  const pageCount = Math.max(1, Math.ceil(rawOrdered.length / rowsPerPage));
+  const curPage = Math.min(page, pageCount - 1);
+  const pageRaw = rawOrdered.slice(curPage * rowsPerPage, curPage * rowsPerPage + rowsPerPage);
+
+  // 姓名/班別/審核結果的篩選條件 — 同一套判斷邏輯，同時用在「本頁實際顯示」跟
+  // 「全系統這個篩選條件總共有多少筆」兩處，確保兩個數字算的是同一件事。
+  const matchesFilter = s => {
     const nm = searchName==='' || s.name.includes(searchName);
     const cl = classFilter==='全部' || s.school===classFilter;
     const st = statusFilter==='全部' ||
@@ -1414,7 +1571,36 @@ function App() {
       (statusFilter==='同意停修' && s.status==='同意') ||
       (statusFilter==='不同意停修' && s.status==='不同意');
     return nm && cl && st;
-  });
+  };
+
+  // 篩選只作用在 pageRaw（目前這一批已抓下來的原始資料），不會查詢其他頁的實際資料列。
+  const baseFiltered = pageRaw.filter(matchesFilter);
+
+  // 「of Z」跟換頁 disable 邏輯要用的，是這個篩選條件在全系統（跨所有頁）的總筆數 ——
+  // 這是後端可以用一個 COUNT 查詢便宜取得的數字，不受「只能拿到本頁資料列」的限制。
+  const globalMatches = effectiveStudents.filter(matchesFilter);
+  // seenThroughCurPage：從第0頁累加到目前頁，符合條件的筆數；如果已經 >= 全系統符合
+  // 總數，代表「後面」不會再有更多符合資料，› 就該停用（即使還沒到原始資料的末頁）。
+  const seenThroughCurPage = rawOrdered.slice(0, (curPage + 1) * rowsPerPage).filter(matchesFilter).length;
+  // matchesBeforeCurPage：目前頁「之前」的頁，符合條件的筆數；如果是 0，代表往前翻
+  // 也不會看到任何符合資料（例如全系統符合的資料剛好都在目前頁或更後面），‹ 就該停用。
+  // 這正好處理「篩選後全部符合的資料，其實一頁（甚至不到 rowsPerPage）就裝得完」的情況：
+  // 換頁跳到那一頁之後，前後都沒有更多符合資料了，‹ › 應該兩個都不能點。
+  const matchesBeforeCurPage = rawOrdered.slice(0, curPage * rowsPerPage).filter(matchesFilter).length;
+  const prevDisabled = curPage <= 0 || matchesBeforeCurPage === 0;
+  const nextDisabled = curPage >= pageCount - 1 || seenThroughCurPage >= globalMatches.length;
+
+  // 換篩選條件（姓名/班別/審核結果）時，如果目前頁篩選後是空的、但別的頁確實有符合
+  // 資料，直接跳到第一個有符合資料的頁面 —— 例如選「不同意停修」，資料實際落在第2頁，
+  // 就直接帶老師去第2頁，而不是讓他停在空的第1頁自己找。只有「換篩選條件」這個動作
+  // 會觸發跳頁；手動點 ‹ › 翻頁不受影響（不在 dependency 裡）。
+  useEffect(() => {
+    if (baseFiltered.length > 0 || globalMatches.length === 0) return;
+    for (let p = 0; p < pageCount; p++) {
+      const hasMatch = rawOrdered.slice(p * rowsPerPage, p * rowsPerPage + rowsPerPage).some(matchesFilter);
+      if (hasMatch) { if (p !== curPage) setPage(p); break; }
+    }
+  }, [searchName, classFilter, statusFilter]);
 
   const filtered = frozenOrder
     ? [
@@ -1440,7 +1626,6 @@ function App() {
     '審核人': s.approver || '',
   });
   const exportAllRows = effectiveStudents.map(toExportRow);
-  const exportFilteredRows = filtered.map(toExportRow);
 
   const pendingCount = effectiveStudents.filter(s => s.status==='待審核' || s.status==='逾期審核').length;
   const hasAnyApplication = effectiveStudents.some(s => s.status!=='未申請');
@@ -1480,7 +1665,7 @@ function App() {
       if (chen) setStudentApp({ status:ns, reason:chen.reason, approvalTime:'2026/05/07 12:30', approver:appr, comment: comment||undefined });
     }
     setFrozenOrder(filtered.map(s => s.id));
-    setStatusFilter('全部');
+    setSelected([]);
     showSuccess(isReversal);
   };
 
@@ -1509,7 +1694,6 @@ function App() {
     setStudents(p => p.map(s => s.id===currentStudent.id ? { ...s, status:dlgStatus, approvalTime:isChen?'2026/05/07 12:30':t, approver:appr, comment:dlgComment, lastModified:ts } : s));
     if (isChen) setStudentApp({ status:dlgStatus, reason:currentStudent.reason, approvalTime:'2026/05/07 12:30', approver:appr, comment:dlgComment });
     setFrozenOrder(filtered.map(s => s.id));
-    setStatusFilter('全部');
     closeReview();
     showSuccess(isReversal);
   };
@@ -1540,10 +1724,6 @@ function App() {
     { value:'全部', label:'全部' },
     { value:'待審核', label:'待審核' },
     { value:'逾期審核', label:'逾期審核' },
-    { value:'同意停修', label:'同意停修' },
-    { value:'不同意停修', label:'不同意停修' },
-  ];
-  const reviewStatusOptions = [
     { value:'同意停修', label:'同意停修' },
     { value:'不同意停修', label:'不同意停修' },
   ];
@@ -1609,6 +1789,7 @@ function App() {
                   onBatchClose={secs => setAdminBatchCloseConf(secs)}
                   onBack={() => setAdminView('list')}
                   showToast={adminShowToast}
+                  resetSelSignal={adminBatchTick}
                 />
               )}
             </div>
@@ -1635,7 +1816,7 @@ function App() {
                       <RefreshIcon /> 重新整理
                     </button>
                   )}
-                  <ExportSplitButton allRows={exportAllRows} filteredRows={exportFilteredRows} />
+                  <ExportSplitButton allRows={exportAllRows} />
                 </div>
               </div>
 
@@ -1662,9 +1843,9 @@ function App() {
                       {[
                         ['學生姓名', 100],['班別', 110],['學號', 128],['申請時間', 96],
                         ['停修原因', 160],['審核結果', 100],['審核期限', 96],['審核時間', 96],
-                        ['審核人', 80],['審核', 50],
+                        ['審核人', 80],['操作', 50],
                       ].map(([h, w]) => (
-                        <th key={h} style={{ padding:'8px', textAlign: h==='審核'?'center':'left', fontSize:14, fontWeight:500, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.12)', background:'#f5f5f5', position:'sticky', top:0, zIndex:2, ...(h==='停修原因' ? { minWidth:w } : { width:w }), whiteSpace:'nowrap' }}>{h}</th>
+                        <th key={h} style={{ padding:'8px', textAlign: h==='操作'?'center':'left', fontSize:14, fontWeight:500, color:'#333', borderBottom:'1px solid rgba(0,0,0,0.12)', background:'#f5f5f5', position:'sticky', top:0, zIndex:2, ...(h==='停修原因' ? { minWidth:w } : { width:w }), whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1672,9 +1853,9 @@ function App() {
                     {filtered.length === 0 ? (
                       <tr>
                         <td colSpan={11} style={{ padding:'32px 8px', textAlign:'center', fontSize:14, color:'#333' }}>
-                          {statusFilter==='待審核' && students.filter(s => s.status==='待審核').length===0
-                            ? '目前沒有需審核的學生'
-                            : '找不到符合條件的學生'
+                          {globalMatches.length === 0
+                            ? (statusFilter==='待審核' ? '目前沒有需審核的學生' : '找不到符合條件的學生')
+                            : '本頁無符合篩選條件的學生，請嘗試其他頁'
                           }
                         </td>
                       </tr>
@@ -1716,6 +1897,16 @@ function App() {
                   </tbody>
                 </table>
               </div>
+
+              <TableFooter
+                prevDisabled={prevDisabled}
+                nextDisabled={nextDisabled}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={n => { setRowsPerPage(n); setPage(0); }}
+                rangeLabel={filtered.length === 0 ? `0 of ${globalMatches.length}` : `1-${filtered.length} of ${globalMatches.length}`}
+                onPrev={() => setPage(curPage - 1)}
+                onNext={() => setPage(curPage + 1)}
+              />
             </div>
           )}
         </div>
@@ -1818,6 +2009,7 @@ function App() {
             const cur = adminGetSecs(adminCurCourse.id);
             adminSaveSecs(adminCurCourse.id, cur.map(s => ids.has(s.id) ? (updatedSecs.find(u => u.id===s.id) || s) : s));
             setAdminBatchSecs(null);
+            setAdminBatchTick(t => t + 1);
             adminShowToast('已成功儲存班別設定');
           }}
         />
@@ -1877,28 +2069,31 @@ function App() {
               </div>
 
               {currentStudent.status==='逾期審核' && (
-                <div style={{ background:'#FFF4E5', borderRadius:4, padding:'6px 16px', display:'flex', gap:8, alignItems:'flex-start' }}>
-                  <WarningIcon size={22} color="#663C00" style={{marginTop:2,flexShrink:0}}/>
-                  <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                    <p style={{ fontSize:16, fontWeight:500, color:'#663C00', lineHeight:1.5, margin:0 }}>學生所屬班別的審核期限已過</p>
-                    <p style={{ fontSize:14, fontWeight:400, color:'#663C00', lineHeight:1.43, margin:0 }}>若需要調整學生申請狀態，請聯繫 COOL 團隊。</p>
+                <>
+                  <div style={{ background:'#FFF4E5', borderRadius:4, padding:'6px 16px', display:'flex', gap:8, alignItems:'flex-start' }}>
+                    <WarningIcon size={22} color="#663C00" style={{marginTop:2,flexShrink:0}}/>
+                    <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                      <p style={{ fontSize:16, fontWeight:500, color:'#663C00', lineHeight:1.5, margin:0 }}>學生所屬班別的審核期限已過</p>
+                      <p style={{ fontSize:14, fontWeight:400, color:'#663C00', lineHeight:1.43, margin:0 }}>若需要修改審核期限或結果，請聯繫 COOL 團隊。</p>
+                    </div>
                   </div>
-                </div>
+                  <div>
+                    <p style={{ fontSize:14, fontWeight:500, color:'rgba(51,51,51,0.6)', marginBottom:8 }}>教師回覆</p>
+                    <ReviewRadioGroup value={dlgStatus} disabled />
+                  </div>
+                  <div>
+                    <MuiTextField multiline rows={3} label="審核評語 (選填)" value={dlgComment} disabled />
+                  </div>
+                </>
               )}
 
               {currentStudent.status!=='逾期審核' && (
                 <>
                   <div>
                     <p style={{ fontSize:14, fontWeight:500, color:'rgba(51,51,51,0.6)', marginBottom:8 }}>教師回覆</p>
-                    <MuiSelect
-                      label="審核結果"
-                      value={dlgStatus==='' ? '' : dlgStatus==='同意' ? '同意停修' : '不同意停修'}
-                      onChange={v => {
-                        if (v==='同意停修') { setDlgStatus('同意'); if (initDlgStatus!=='') setDlgComment(''); }
-                        else if (v==='不同意停修') { setDlgStatus('不同意'); if (initDlgStatus!=='') setDlgComment(''); }
-                      }}
-                      options={reviewStatusOptions}
-                      width={220}
+                    <ReviewRadioGroup
+                      value={dlgStatus}
+                      onChange={v => { setDlgStatus(v); if (initDlgStatus!=='') setDlgComment(''); }}
                     />
                   </div>
                   <div>
